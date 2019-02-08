@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package crictl
 
 import (
 	"context"
@@ -57,10 +57,10 @@ func getTimeout(timeDuration time.Duration) time.Duration {
 	return defaultTimeout // use default
 }
 
-func main() {
+func Main() {
 	if err := run(); err != nil {
 		logrus.Error(err)
-		os.Exit(1) //nolint:forbidigo // intentional exit in main() after error handling
+		os.Exit(1) //nolint:forbidigo // intentional exit in Main() after error handling
 	}
 }
 
