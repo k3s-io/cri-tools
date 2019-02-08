@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package crictl
 
 import (
 	"fmt"
@@ -133,7 +133,7 @@ func getTimeout(timeDuration time.Duration) time.Duration {
 	return defaultTimeout // use default
 }
 
-func main() {
+func Main() {
 	app := cli.NewApp()
 	app.Name = "crictl"
 	app.Usage = "client for CRI"
