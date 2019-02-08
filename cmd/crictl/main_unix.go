@@ -17,7 +17,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package crictl
 
 import (
 	"os"
@@ -28,6 +28,6 @@ const (
 	defaultConfigPath = "/etc/crictl.yaml"
 )
 
-var defaultRuntimeEndpoints = []string{"unix:///var/run/dockershim.sock", "unix:///run/containerd/containerd.sock", "unix:///run/crio/crio.sock", "unix:///var/run/cri-dockerd.sock"}
+var defaultRuntimeEndpoints = []string{"unix:///run/k3s/containerd/containerd.sock", "unix:///var/run/dockershim.sock", "unix:///run/containerd/containerd.sock", "unix:///run/crio/crio.sock", "unix:///var/run/cri-dockerd.sock"}
 
 var shutdownSignals = []os.Signal{os.Interrupt, syscall.SIGTERM}
