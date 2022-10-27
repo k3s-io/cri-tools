@@ -150,7 +150,7 @@ func LoadCRIClient() (*InternalAPIClient, error) {
 		// Fallback to runtime service endpoint
 		imageServiceAddr = TestContext.RuntimeServiceAddr
 	}
-	iService, err := remote.NewRemoteImageService(imageServiceAddr, TestContext.ImageServiceTimeout)
+	iService, err := remote.NewRemoteImageService(imageServiceAddr, TestContext.ImageServiceTimeout, trace.NewNoopTracerProvider())
 	if err != nil {
 		return nil, err
 	}

@@ -31,6 +31,7 @@ import (
 
 	"github.com/kubernetes-sigs/cri-tools/pkg/common"
 	"github.com/kubernetes-sigs/cri-tools/pkg/version"
+	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
 const defaultTimeout = 2 * time.Second
@@ -115,7 +116,7 @@ func getImageService(context *cli.Context) (res internalapi.ImageManagerService,
 		for _, endPoint := range defaultRuntimeEndpoints {
 			logrus.Debugf("Connect using endpoint %q with %q timeout", endPoint, Timeout)
 
-			res, err = remote.NewRemoteImageService(endPoint, Timeout)
+			res, err = remote.NewRemoteImageService(endPoint, Timeout, oteltrace.NewNoopTracerProvider())
 			if err != nil {
 				logrus.Error(err)
 				continue
@@ -126,7 +127,7 @@ func getImageService(context *cli.Context) (res internalapi.ImageManagerService,
 		}
 		return res, err
 	}
-	return remote.NewRemoteImageService(ImageEndpoint, Timeout)
+	return remote.NewRemoteImageService(ImageEndpoint, Timeout, oteltrace.NewNoopTracerProvider())
 }
 
 func getTimeout(timeDuration time.Duration) time.Duration {
