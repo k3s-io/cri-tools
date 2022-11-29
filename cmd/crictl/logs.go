@@ -92,7 +92,7 @@ var logsCommand = &cli.Command{
 			SinceTime:  since,
 			Timestamps: timestamp,
 		}, time.Now())
-		status, err := runtimeService.ContainerStatus(containerID, false)
+		status, err := runtimeService.ContainerStatus(ctx.Context, containerID, false)
 		if err != nil {
 			return err
 		}

@@ -17,6 +17,7 @@ limitations under the License.
 package crictl
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -50,7 +51,7 @@ var runtimePortForwardCommand = &cli.Command{
 			id:    args[0],
 			ports: args[1:],
 		}
-		err = PortForward(runtimeClient, opts)
+		err = PortForward(context.Context, runtimeClient, opts)
 		if err != nil {
 			return fmt.Errorf("port forward: %w", err)
 
@@ -61,7 +62,7 @@ var runtimePortForwardCommand = &cli.Command{
 }
 
 // PortForward sends an PortForwardRequest to server, and parses the returned PortForwardResponse
-func PortForward(client internalapi.RuntimeService, opts portforwardOptions) error {
+func PortForward(ctx context.Context, client internalapi.RuntimeService, opts portforwardOptions) error {
 	if opts.id == "" {
 		return fmt.Errorf("ID cannot be empty")
 
@@ -70,7 +71,7 @@ func PortForward(client internalapi.RuntimeService, opts portforwardOptions) err
 		PodSandboxId: opts.id,
 	}
 	logrus.Debugf("PortForwardRequest: %v", request)
-	r, err := client.PortForward(request)
+	r, err := client.PortForward(ctx, request)
 	logrus.Debugf("PortForwardResponse; %v", r)
 	if err != nil {
 		return err

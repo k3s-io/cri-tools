@@ -18,6 +18,7 @@ package validate
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -56,7 +57,7 @@ type logMessage struct {
 
 var _ = framework.KubeDescribe("Container", func() {
 	f := framework.NewDefaultCRIFramework()
-
+	ctx := context.Background()
 	var rc internalapi.RuntimeService
 	var ic internalapi.ImageManagerService
 
@@ -70,107 +71,107 @@ var _ = framework.KubeDescribe("Container", func() {
 		var podConfig *runtimeapi.PodSandboxConfig
 
 		BeforeEach(func() {
-			podID, podConfig = framework.CreatePodSandboxForContainer(rc)
+			podID, podConfig = framework.CreatePodSandboxForContainer(ctx, rc)
 		})
 
 		AfterEach(func() {
 			By("stop PodSandbox")
-			rc.StopPodSandbox(podID)
+			rc.StopPodSandbox(ctx, podID)
 			By("delete PodSandbox")
-			rc.RemovePodSandbox(podID)
+			rc.RemovePodSandbox(ctx, podID)
 		})
 
 		It("runtime should support creating container [Conformance]", func() {
 			By("test create a default container")
-			containerID := framework.CreateDefaultContainer(rc, ic, podID, podConfig, "container-for-create-")
+			containerID := framework.CreateDefaultContainer(ctx, rc, ic, podID, podConfig, "container-for-create-")
 
 			By("test list container")
-			containers := listContainerForID(rc, containerID)
+			containers := listContainerForID(ctx, rc, containerID)
 			Expect(containerFound(containers, containerID)).To(BeTrue(), "Container should be created")
 		})
 
 		It("runtime should support starting container [Conformance]", func() {
 			By("create container")
-			containerID := framework.CreateDefaultContainer(rc, ic, podID, podConfig, "container-for-start-test-")
+			containerID := framework.CreateDefaultContainer(ctx, rc, ic, podID, podConfig, "container-for-start-test-")
 
 			By("test start container")
-			testStartContainer(rc, containerID)
+			testStartContainer(ctx, rc, containerID)
 		})
 
 		It("runtime should support stopping container [Conformance]", func() {
 			By("create container")
-			containerID := framework.CreateDefaultContainer(rc, ic, podID, podConfig, "container-for-stop-test-")
+			containerID := framework.CreateDefaultContainer(ctx, rc, ic, podID, podConfig, "container-for-stop-test-")
 
 			By("start container")
-			startContainer(rc, containerID)
+			startContainer(ctx, rc, containerID)
 
 			By("test stop container")
-			testStopContainer(rc, containerID)
+			testStopContainer(ctx, rc, containerID)
 		})
 
 		It("runtime should support removing created container [Conformance]", func() {
 			By("create container")
-			containerID := framework.CreatePauseContainer(rc, ic, podID, podConfig, "container-for-remove-created-test-")
+			containerID := framework.CreatePauseContainer(ctx, rc, ic, podID, podConfig, "container-for-remove-created-test-")
 
 			By("test remove container")
-			removeContainer(rc, containerID)
-			containers := listContainerForID(rc, containerID)
+			removeContainer(ctx, rc, containerID)
+			containers := listContainerForID(ctx, rc, containerID)
 			Expect(containerFound(containers, containerID)).To(BeFalse(), "Container should be removed")
 		})
 
 		It("runtime should support removing running container [Conformance]", func() {
 			By("create container")
-			containerID := framework.CreatePauseContainer(rc, ic, podID, podConfig, "container-for-remove-running-test-")
+			containerID := framework.CreatePauseContainer(ctx, rc, ic, podID, podConfig, "container-for-remove-running-test-")
 
 			By("start container")
-			startContainer(rc, containerID)
+			startContainer(ctx, rc, containerID)
 
 			By("test remove container")
-			removeContainer(rc, containerID)
-			containers := listContainerForID(rc, containerID)
+			removeContainer(ctx, rc, containerID)
+			containers := listContainerForID(ctx, rc, containerID)
 			Expect(containerFound(containers, containerID)).To(BeFalse(), "Container should be removed")
 		})
 
 		It("runtime should support removing stopped container [Conformance]", func() {
 			By("create container")
-			containerID := framework.CreatePauseContainer(rc, ic, podID, podConfig, "container-for-remove-stopped-test-")
+			containerID := framework.CreatePauseContainer(ctx, rc, ic, podID, podConfig, "container-for-remove-stopped-test-")
 
 			By("start container")
-			startContainer(rc, containerID)
+			startContainer(ctx, rc, containerID)
 
 			By("test stop container")
-			testStopContainer(rc, containerID)
+			testStopContainer(ctx, rc, containerID)
 
 			By("test remove container")
-			removeContainer(rc, containerID)
-			containers := listContainerForID(rc, containerID)
+			removeContainer(ctx, rc, containerID)
+			containers := listContainerForID(ctx, rc, containerID)
 			Expect(containerFound(containers, containerID)).To(BeFalse(), "Container should be removed")
 		})
 
 		It("runtime should support execSync [Conformance]", func() {
 			By("create container")
-			containerID := framework.CreateDefaultContainer(rc, ic, podID, podConfig, "container-for-execSync-test-")
+			containerID := framework.CreateDefaultContainer(ctx, rc, ic, podID, podConfig, "container-for-execSync-test-")
 
 			By("start container")
-			startContainer(rc, containerID)
+			startContainer(ctx, rc, containerID)
 
 			By("test execSync")
-			verifyExecSyncOutput(rc, containerID, echoHelloCmd, echoHelloOutput)
+			verifyExecSyncOutput(ctx, rc, containerID, echoHelloCmd, echoHelloOutput)
 		})
 
 		It("runtime should support execSync with timeout [Conformance]", func() {
 			By("create container")
-			containerID := framework.CreateDefaultContainer(rc, ic, podID, podConfig, "container-for-execSync-timeout-test-")
+			containerID := framework.CreateDefaultContainer(ctx, rc, ic, podID, podConfig, "container-for-execSync-timeout-test-")
 
 			By("start container")
-			startContainer(rc, containerID)
+			startContainer(ctx, rc, containerID)
 
 			By("test execSync with timeout")
-			_, _, err := rc.ExecSync(containerID, sleepCmd, time.Second)
+			_, _, err := rc.ExecSync(ctx, containerID, sleepCmd, time.Second)
 			Expect(err).Should(HaveOccurred(), "execSync should timeout")
 
 			By("timeout exec process should be gone")
-			stdout, stderr, err := rc.ExecSync(containerID, checkSleepCmd,
+			stdout, stderr, err := rc.ExecSync(ctx, containerID, checkSleepCmd,
 				time.Duration(defaultExecSyncTimeout)*time.Second)
 			framework.ExpectNoError(err)
 			Expect(string(stderr)).To(BeEmpty())
@@ -179,13 +180,13 @@ var _ = framework.KubeDescribe("Container", func() {
 
 		It("runtime should support listing container stats [Conformance]", func() {
 			By("create container")
-			containerID := framework.CreateDefaultContainer(rc, ic, podID, podConfig, "container-for-stats-")
+			containerID := framework.CreateDefaultContainer(ctx, rc, ic, podID, podConfig, "container-for-stats-")
 
 			By("start container")
-			startContainer(rc, containerID)
+			startContainer(ctx, rc, containerID)
 
 			By("test container stats")
-			stats := listContainerStatsForID(rc, containerID)
+			stats := listContainerStatsForID(ctx, rc, containerID)
 			Expect(stats.Attributes.Id).To(Equal(containerID))
 			Expect(stats.Attributes.Metadata.Name).To(ContainSubstring("container-for-stats-"))
 			Expect(stats.Cpu.Timestamp).NotTo(BeZero())
@@ -194,48 +195,48 @@ var _ = framework.KubeDescribe("Container", func() {
 
 		It("runtime should support listing stats for started containers [Conformance]", func() {
 			By("create container")
-			containerID := framework.CreateDefaultContainer(rc, ic, podID, podConfig, "container-for-stats-")
+			containerID := framework.CreateDefaultContainer(ctx, rc, ic, podID, podConfig, "container-for-stats-")
 
 			By("start container")
-			startContainer(rc, containerID)
+			startContainer(ctx, rc, containerID)
 			filter := &runtimeapi.ContainerStatsFilter{
 				Id: containerID,
 			}
 
 			By("test container stats")
-			stats := listContainerStats(rc, filter)
+			stats := listContainerStats(ctx, rc, filter)
 			Expect(statFound(stats, containerID)).To(BeTrue(), "Container should be created")
 		})
 
 		It("runtime should support listing stats for started containers when filter is nil [Conformance]", func() {
 			By("create container")
-			containerID := framework.CreateDefaultContainer(rc, ic, podID, podConfig, "container-for-stats-with-nil-filter-")
+			containerID := framework.CreateDefaultContainer(ctx, rc, ic, podID, podConfig, "container-for-stats-with-nil-filter-")
 
 			By("start container")
-			startContainer(rc, containerID)
+			startContainer(ctx, rc, containerID)
 
 			By("test container stats")
-			stats := listContainerStats(rc, nil)
+			stats := listContainerStats(ctx, rc, nil)
 			Expect(statFound(stats, containerID)).To(BeTrue(), "Stats should be found")
 		})
 
 		It("runtime should support listing stats for three created containers when filter is nil. [Conformance]", func() {
 			By("create first container ")
-			firstContainerID := framework.CreateDefaultContainer(rc, ic, podID, podConfig, "container-for-stats-with-nil-filter-")
+			firstContainerID := framework.CreateDefaultContainer(ctx, rc, ic, podID, podConfig, "container-for-stats-with-nil-filter-")
 			By("create second container ")
-			secondContainerID := framework.CreateDefaultContainer(rc, ic, podID, podConfig, "container-for-stats-with-nil-filter-")
+			secondContainerID := framework.CreateDefaultContainer(ctx, rc, ic, podID, podConfig, "container-for-stats-with-nil-filter-")
 			By("create third container ")
-			thirdContainerID := framework.CreateDefaultContainer(rc, ic, podID, podConfig, "container-for-stats-with-nil-filter-")
+			thirdContainerID := framework.CreateDefaultContainer(ctx, rc, ic, podID, podConfig, "container-for-stats-with-nil-filter-")
 
 			By("start first container")
-			startContainer(rc, firstContainerID)
+			startContainer(ctx, rc, firstContainerID)
 			By("start second container")
-			startContainer(rc, secondContainerID)
+			startContainer(ctx, rc, secondContainerID)
 			By("start third container")
-			startContainer(rc, thirdContainerID)
+			startContainer(ctx, rc, thirdContainerID)
 
 			By("test containers stats")
-			stats := listContainerStats(rc, nil)
+			stats := listContainerStats(ctx, rc, nil)
 			Expect(statFound(stats, firstContainerID)).To(BeTrue(), "Stats should be found")
 			Expect(statFound(stats, secondContainerID)).To(BeTrue(), "Stats should be found")
 			Expect(statFound(stats, thirdContainerID)).To(BeTrue(), "Stats should be found")
@@ -247,14 +248,14 @@ var _ = framework.KubeDescribe("Container", func() {
 		var podConfig *runtimeapi.PodSandboxConfig
 
 		BeforeEach(func() {
-			podID, podConfig = framework.CreatePodSandboxForContainer(rc)
+			podID, podConfig = framework.CreatePodSandboxForContainer(ctx, rc)
 		})
 
 		AfterEach(func() {
 			By("stop PodSandbox")
-			rc.StopPodSandbox(podID)
+			rc.StopPodSandbox(ctx, podID)
 			By("delete PodSandbox")
-			rc.RemovePodSandbox(podID)
+			rc.RemovePodSandbox(ctx, podID)
 		})
 
 		It("runtime should support starting container with volume [Conformance]", func() {
@@ -264,13 +265,13 @@ var _ = framework.KubeDescribe("Container", func() {
 			defer os.RemoveAll(hostPath) // clean up the TempDir
 
 			By("create container with volume")
-			containerID := createVolumeContainer(rc, ic, "container-with-volume-test-", podID, podConfig, hostPath)
+			containerID := createVolumeContainer(ctx, rc, ic, "container-with-volume-test-", podID, podConfig, hostPath)
 
 			By("test start container with volume")
-			testStartContainer(rc, containerID)
+			testStartContainer(ctx, rc, containerID)
 
 			By("check whether 'hostPath' contains file or dir in container")
-			output := execSyncContainer(rc, containerID, checkPathCmd(hostPath))
+			output := execSyncContainer(ctx, rc, containerID, checkPathCmd(hostPath))
 			Expect(len(output)).NotTo(BeZero(), "len(output) should not be zero.")
 		})
 
@@ -284,13 +285,13 @@ var _ = framework.KubeDescribe("Container", func() {
 			defer os.RemoveAll(symlinkPath) // clean up the symlink
 
 			By("create volume container with symlink host path")
-			containerID := createVolumeContainer(rc, ic, "container-with-symlink-host-path-test-", podID, podConfig, symlinkPath)
+			containerID := createVolumeContainer(ctx, rc, ic, "container-with-symlink-host-path-test-", podID, podConfig, symlinkPath)
 
 			By("test start volume container with symlink host path")
-			testStartContainer(rc, containerID)
+			testStartContainer(ctx, rc, containerID)
 
 			By("check whether 'symlink' contains file or dir in container")
-			output := execSyncContainer(rc, containerID, checkPathCmd(symlinkPath))
+			output := execSyncContainer(ctx, rc, containerID, checkPathCmd(symlinkPath))
 			Expect(len(output)).NotTo(BeZero(), "len(output) should not be zero.")
 		})
 
@@ -303,27 +304,27 @@ var _ = framework.KubeDescribe("Container", func() {
 		var podConfig *runtimeapi.PodSandboxConfig
 
 		BeforeEach(func() {
-			podID, podConfig, hostPath = createPodSandboxWithLogDirectory(rc)
+			podID, podConfig, hostPath = createPodSandboxWithLogDirectory(ctx, rc)
 		})
 
 		AfterEach(func() {
 			By("stop PodSandbox")
-			rc.StopPodSandbox(podID)
+			rc.StopPodSandbox(ctx, podID)
 			By("delete PodSandbox")
-			rc.RemovePodSandbox(podID)
+			rc.RemovePodSandbox(ctx, podID)
 			By("clean up the TempDir")
 			os.RemoveAll(hostPath)
 		})
 
 		It("runtime should support starting container with log [Conformance]", func() {
 			By("create container with log")
-			logPath, containerID := createLogContainer(rc, ic, "container-with-log-test-", podID, podConfig)
+			logPath, containerID := createLogContainer(ctx, rc, ic, "container-with-log-test-", podID, podConfig)
 
 			By("start container with log")
-			startContainer(rc, containerID)
+			startContainer(ctx, rc, containerID)
 			// wait container exited and check the status.
 			Eventually(func() runtimeapi.ContainerState {
-				return getContainerStatus(rc, containerID).State
+				return getContainerStatus(ctx, rc, containerID).State
 			}, time.Minute, time.Second*4).Should(Equal(runtimeapi.ContainerState_CONTAINER_EXITED))
 
 			By("check the log context")
@@ -333,10 +334,10 @@ var _ = framework.KubeDescribe("Container", func() {
 
 		It("runtime should support reopening container log [Conformance]", func() {
 			By("create container with log")
-			logPath, containerID := createKeepLoggingContainer(rc, ic, "container-reopen-log-test-", podID, podConfig)
+			logPath, containerID := createKeepLoggingContainer(ctx, rc, ic, "container-reopen-log-test-", podID, podConfig)
 
 			By("start container with log")
-			startContainer(rc, containerID)
+			startContainer(ctx, rc, containerID)
 
 			Eventually(func() []logMessage {
 				return parseLogLine(podConfig, logPath)
@@ -348,7 +349,7 @@ var _ = framework.KubeDescribe("Container", func() {
 				filepath.Join(podConfig.LogDirectory, newLogPath))).To(Succeed())
 
 			By("reopen container log")
-			Expect(rc.ReopenContainerLog(containerID)).To(Succeed())
+			Expect(rc.ReopenContainerLog(ctx, containerID)).To(Succeed())
 
 			Expect(pathExists(filepath.Join(podConfig.LogDirectory, logPath))).To(
 				BeTrue(), "new container log file should be created")
@@ -384,15 +385,15 @@ func statFound(stats []*runtimeapi.ContainerStats, containerID string) bool {
 }
 
 // getContainerStatus gets ContainerState for containerID and fails if it gets error.
-func getContainerStatus(c internalapi.RuntimeService, containerID string) *runtimeapi.ContainerStatus {
+func getContainerStatus(ctx context.Context, c internalapi.RuntimeService, containerID string) *runtimeapi.ContainerStatus {
 	By("Get container status for containerID: " + containerID)
-	status, err := c.ContainerStatus(containerID, false)
+	status, err := c.ContainerStatus(ctx, containerID, false)
 	framework.ExpectNoError(err, "failed to get container %q status: %v", containerID, err)
 	return status.GetStatus()
 }
 
 // createShellContainer creates a container to run /bin/sh.
-func createShellContainer(rc internalapi.RuntimeService, ic internalapi.ImageManagerService, podID string, podConfig *runtimeapi.PodSandboxConfig, prefix string) string {
+func createShellContainer(ctx context.Context, rc internalapi.RuntimeService, ic internalapi.ImageManagerService, podID string, podConfig *runtimeapi.PodSandboxConfig, prefix string) string {
 	containerName := prefix + framework.NewUUID()
 	containerConfig := &runtimeapi.ContainerConfig{
 		Metadata:  framework.BuildContainerMetadata(containerName, framework.DefaultAttempt),
@@ -404,33 +405,33 @@ func createShellContainer(rc internalapi.RuntimeService, ic internalapi.ImageMan
 		Tty:       false,
 	}
 
-	return framework.CreateContainer(rc, ic, containerConfig, podID, podConfig)
+	return framework.CreateContainer(ctx, rc, ic, containerConfig, podID, podConfig)
 }
 
 // startContainer start the container for containerID.
-func startContainer(c internalapi.RuntimeService, containerID string) {
+func startContainer(ctx context.Context, c internalapi.RuntimeService, containerID string) {
 	By("Start container for containerID: " + containerID)
-	err := c.StartContainer(containerID)
+	err := c.StartContainer(ctx, containerID)
 	framework.ExpectNoError(err, "failed to start container: %v", err)
 	framework.Logf("Started container %q\n", containerID)
 }
 
 // testStartContainer starts the container for containerID and make sure it's running.
-func testStartContainer(rc internalapi.RuntimeService, containerID string) {
-	startContainer(rc, containerID)
+func testStartContainer(ctx context.Context, rc internalapi.RuntimeService, containerID string) {
+	startContainer(ctx, rc, containerID)
 	Eventually(func() runtimeapi.ContainerState {
-		return getContainerStatus(rc, containerID).State
+		return getContainerStatus(ctx, rc, containerID).State
 	}, time.Minute, time.Second*4).Should(Equal(runtimeapi.ContainerState_CONTAINER_RUNNING))
 }
 
 // stopContainer stops the container for containerID.
-func stopContainer(c internalapi.RuntimeService, containerID string, timeout int64) {
+func stopContainer(ctx context.Context, c internalapi.RuntimeService, containerID string, timeout int64) {
 	By("Stop container for containerID: " + containerID)
 	stopped := make(chan bool, 1)
 
 	go func() {
 		defer GinkgoRecover()
-		err := c.StopContainer(containerID, timeout)
+		err := c.StopContainer(ctx, containerID, timeout)
 		framework.ExpectNoError(err, "failed to stop container: %v", err)
 		stopped <- true
 	}()
@@ -444,36 +445,36 @@ func stopContainer(c internalapi.RuntimeService, containerID string, timeout int
 }
 
 // testStopContainer stops the container for containerID and make sure it's exited.
-func testStopContainer(c internalapi.RuntimeService, containerID string) {
-	stopContainer(c, containerID, defaultStopContainerTimeout)
+func testStopContainer(ctx context.Context, c internalapi.RuntimeService, containerID string) {
+	stopContainer(ctx, c, containerID, defaultStopContainerTimeout)
 	Eventually(func() runtimeapi.ContainerState {
-		return getContainerStatus(c, containerID).State
+		return getContainerStatus(ctx, c, containerID).State
 	}, time.Minute, time.Second*4).Should(Equal(runtimeapi.ContainerState_CONTAINER_EXITED))
 }
 
 // removeContainer removes the container for containerID.
-func removeContainer(c internalapi.RuntimeService, containerID string) {
+func removeContainer(ctx context.Context, c internalapi.RuntimeService, containerID string) {
 	By("Remove container for containerID: " + containerID)
-	err := c.RemoveContainer(containerID)
+	err := c.RemoveContainer(ctx, containerID)
 	framework.ExpectNoError(err, "failed to remove container: %v", err)
 	framework.Logf("Removed container %q\n", containerID)
 }
 
 // listContainerForID lists container for containerID.
-func listContainerForID(c internalapi.RuntimeService, containerID string) []*runtimeapi.Container {
+func listContainerForID(ctx context.Context, c internalapi.RuntimeService, containerID string) []*runtimeapi.Container {
 	By("List containers for containerID: " + containerID)
 	filter := &runtimeapi.ContainerFilter{
 		Id: containerID,
 	}
-	containers, err := c.ListContainers(filter)
+	containers, err := c.ListContainers(ctx, filter)
 	framework.ExpectNoError(err, "failed to list containers %q status: %v", containerID, err)
 	return containers
 }
 
 // execSyncContainer test execSync for containerID and make sure the response is right.
-func execSyncContainer(c internalapi.RuntimeService, containerID string, command []string) string {
+func execSyncContainer(ctx context.Context, c internalapi.RuntimeService, containerID string, command []string) string {
 	By("execSync for containerID: " + containerID)
-	stdout, stderr, err := c.ExecSync(containerID, command, time.Duration(defaultExecSyncTimeout)*time.Second)
+	stdout, stderr, err := c.ExecSync(ctx, containerID, command, time.Duration(defaultExecSyncTimeout)*time.Second)
 	framework.ExpectNoError(err, "failed to execSync in container %q", containerID)
 	Expect(string(stderr)).To(BeEmpty(), "The stderr should be empty.")
 	framework.Logf("Execsync succeed")
@@ -482,9 +483,9 @@ func execSyncContainer(c internalapi.RuntimeService, containerID string, command
 }
 
 // execSyncContainer test execSync for containerID and make sure the response is right.
-func verifyExecSyncOutput(c internalapi.RuntimeService, containerID string, command []string, expectedLogMessage string) {
+func verifyExecSyncOutput(ctx context.Context, c internalapi.RuntimeService, containerID string, command []string, expectedLogMessage string) {
 	By("verify execSync output")
-	stdout := execSyncContainer(c, containerID, command)
+	stdout := execSyncContainer(ctx, c, containerID, command)
 	Expect(stdout).To(Equal(expectedLogMessage), "The stdout output of execSync should be %s", expectedLogMessage)
 	framework.Logf("verify Execsync output succeed")
 }
@@ -509,7 +510,7 @@ func createSymlink(path string) string {
 }
 
 // createVolumeContainer creates a container with volume and the prefix of containerName and fails if it gets error.
-func createVolumeContainer(rc internalapi.RuntimeService, ic internalapi.ImageManagerService, prefix string, podID string, podConfig *runtimeapi.PodSandboxConfig, hostPath string) string {
+func createVolumeContainer(ctx context.Context, rc internalapi.RuntimeService, ic internalapi.ImageManagerService, prefix string, podID string, podConfig *runtimeapi.PodSandboxConfig, hostPath string) string {
 	By("create a container with volume and name")
 	containerName := prefix + framework.NewUUID()
 	containerConfig := &runtimeapi.ContainerConfig{
@@ -526,11 +527,11 @@ func createVolumeContainer(rc internalapi.RuntimeService, ic internalapi.ImageMa
 		},
 	}
 
-	return framework.CreateContainer(rc, ic, containerConfig, podID, podConfig)
+	return framework.CreateContainer(ctx, rc, ic, containerConfig, podID, podConfig)
 }
 
 // createLogContainer creates a container with log and the prefix of containerName.
-func createLogContainer(rc internalapi.RuntimeService, ic internalapi.ImageManagerService, prefix string, podID string, podConfig *runtimeapi.PodSandboxConfig) (string, string) {
+func createLogContainer(ctx context.Context, rc internalapi.RuntimeService, ic internalapi.ImageManagerService, prefix string, podID string, podConfig *runtimeapi.PodSandboxConfig) (string, string) {
 	By("create a container with log and name")
 	containerName := prefix + framework.NewUUID()
 	path := fmt.Sprintf("%s.log", containerName)
@@ -540,11 +541,11 @@ func createLogContainer(rc internalapi.RuntimeService, ic internalapi.ImageManag
 		Command:  logDefaultCmd,
 		LogPath:  path,
 	}
-	return containerConfig.LogPath, framework.CreateContainer(rc, ic, containerConfig, podID, podConfig)
+	return containerConfig.LogPath, framework.CreateContainer(ctx, rc, ic, containerConfig, podID, podConfig)
 }
 
 // createKeepLoggingContainer creates a container keeps logging defaultLog to output.
-func createKeepLoggingContainer(rc internalapi.RuntimeService, ic internalapi.ImageManagerService, prefix string, podID string, podConfig *runtimeapi.PodSandboxConfig) (string, string) {
+func createKeepLoggingContainer(ctx context.Context, rc internalapi.RuntimeService, ic internalapi.ImageManagerService, prefix string, podID string, podConfig *runtimeapi.PodSandboxConfig) (string, string) {
 	By("create a container with log and name")
 	containerName := prefix + framework.NewUUID()
 	path := fmt.Sprintf("%s.log", containerName)
@@ -554,7 +555,7 @@ func createKeepLoggingContainer(rc internalapi.RuntimeService, ic internalapi.Im
 		Command:  loopLogDefaultCmd,
 		LogPath:  path,
 	}
-	return containerConfig.LogPath, framework.CreateContainer(rc, ic, containerConfig, podID, podConfig)
+	return containerConfig.LogPath, framework.CreateContainer(ctx, rc, ic, containerConfig, podID, podConfig)
 }
 
 // pathExists check whether 'path' does exist or not
@@ -572,8 +573,9 @@ func pathExists(path string) bool {
 
 // parseDockerJSONLog parses logs in Docker JSON log format.
 // Docker JSON log format example:
-//   {"log":"content 1","stream":"stdout","time":"2016-10-20T18:39:20.57606443Z"}
-//   {"log":"content 2","stream":"stderr","time":"2016-10-20T18:39:20.57606444Z"}
+//
+//	{"log":"content 1","stream":"stdout","time":"2016-10-20T18:39:20.57606443Z"}
+//	{"log":"content 2","stream":"stderr","time":"2016-10-20T18:39:20.57606444Z"}
 func parseDockerJSONLog(log []byte, msg *logMessage) {
 	var l jsonlog.JSONLog
 
@@ -587,8 +589,9 @@ func parseDockerJSONLog(log []byte, msg *logMessage) {
 
 // parseCRILog parses logs in CRI log format.
 // CRI log format example :
-//   2016-10-06T00:17:09.669794202Z stdout P The content of the log entry 1
-//   2016-10-06T00:17:10.113242941Z stderr F The content of the log entry 2
+//
+//	2016-10-06T00:17:09.669794202Z stdout P The content of the log entry 1
+//	2016-10-06T00:17:10.113242941Z stderr F The content of the log entry 2
 func parseCRILog(log string, msg *logMessage) {
 	logMessage := strings.SplitN(log, " ", 4)
 	if len(log) < 4 {
@@ -654,17 +657,17 @@ func verifyLogContents(podConfig *runtimeapi.PodSandboxConfig, logPath string, l
 }
 
 // listContainerStatsForID lists container for containerID.
-func listContainerStatsForID(c internalapi.RuntimeService, containerID string) *runtimeapi.ContainerStats {
+func listContainerStatsForID(ctx context.Context, c internalapi.RuntimeService, containerID string) *runtimeapi.ContainerStats {
 	By("List container stats for containerID: " + containerID)
-	stats, err := c.ContainerStats(containerID)
+	stats, err := c.ContainerStats(ctx, containerID)
 	framework.ExpectNoError(err, "failed to list container stats for %q status: %v", containerID, err)
 	return stats
 }
 
 // listContainerStats lists stats for containers based on filter
-func listContainerStats(c internalapi.RuntimeService, filter *runtimeapi.ContainerStatsFilter) []*runtimeapi.ContainerStats {
+func listContainerStats(ctx context.Context, c internalapi.RuntimeService, filter *runtimeapi.ContainerStatsFilter) []*runtimeapi.ContainerStats {
 	By("List container stats for all containers:")
-	stats, err := c.ListContainerStats(filter)
+	stats, err := c.ListContainerStats(ctx, filter)
 	framework.ExpectNoError(err, "failed to list container stats for containers status: %v", err)
 	return stats
 }

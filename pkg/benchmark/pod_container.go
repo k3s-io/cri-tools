@@ -17,6 +17,8 @@ limitations under the License.
 package benchmark
 
 import (
+	"context"
+
 	"github.com/kubernetes-sigs/cri-tools/pkg/framework"
 	internalapi "k8s.io/cri-api/pkg/apis"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
@@ -40,7 +42,7 @@ func getPodContainerBenchmarkTimeoutSeconds() int {
 
 var _ = framework.KubeDescribe("PodSandbox", func() {
 	f := framework.NewDefaultCRIFramework()
-
+	ctx := context.Background()
 	var (
 		experiment *gmeasure.Experiment
 		rc         internalapi.RuntimeService
@@ -68,20 +70,20 @@ var _ = framework.KubeDescribe("PodSandbox", func() {
 
 			benchmark := func() {
 				By("run PodSandbox")
-				podID, err := rc.RunPodSandbox(config, framework.TestContext.RuntimeHandler)
+				podID, err := rc.RunPodSandbox(ctx, config, framework.TestContext.RuntimeHandler)
 				framework.ExpectNoError(err, "failed to create PodSandbox: %v", err)
 
 				By("create container in PodSandbox")
-				containerID := framework.CreateDefaultContainer(rc, ic, podID, config, "Pod-Container-for-creating-benchmark-")
+				containerID := framework.CreateDefaultContainer(ctx, rc, ic, podID, config, "Pod-Container-for-creating-benchmark-")
 
 				By("start container in PodSandbox")
-				err = rc.StartContainer(containerID)
+				err = rc.StartContainer(ctx, containerID)
 				framework.ExpectNoError(err, "failed to start Container: %v", err)
 
 				By("stop PodSandbox")
-				rc.StopPodSandbox(podID)
+				rc.StopPodSandbox(ctx, podID)
 				By("delete PodSandbox")
-				rc.RemovePodSandbox(podID)
+				rc.RemovePodSandbox(ctx, podID)
 			}
 
 			// Run a single test to ensure images are available and everything works

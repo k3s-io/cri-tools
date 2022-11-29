@@ -17,6 +17,7 @@ limitations under the License.
 package crictl
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -183,7 +184,7 @@ var createContainerCommand = &cli.Command{
 			return err
 		}
 
-		ctrID, err := CreateContainer(imageClient, runtimeClient, opts)
+		ctrID, err := CreateContainer(context.Context, imageClient, runtimeClient, opts)
 		if err != nil {
 			return fmt.Errorf("creating container: %w", err)
 		}
@@ -207,7 +208,7 @@ var startContainerCommand = &cli.Command{
 
 		for i := 0; i < context.NArg(); i++ {
 			containerID := context.Args().Get(i)
-			err := StartContainer(runtimeClient, containerID)
+			err := StartContainer(context.Context, runtimeClient, containerID)
 			if err != nil {
 				return fmt.Errorf("starting the container %q: %w", containerID, err)
 			}
@@ -275,7 +276,7 @@ var updateContainerCommand = &cli.Command{
 
 		for i := 0; i < context.NArg(); i++ {
 			containerID := context.Args().Get(i)
-			err := UpdateContainerResources(runtimeClient, containerID, options)
+			err := UpdateContainerResources(context.Context, runtimeClient, containerID, options)
 			if err != nil {
 				return fmt.Errorf("updating container resources for %q: %w", containerID, err)
 			}
@@ -307,7 +308,7 @@ var stopContainerCommand = &cli.Command{
 
 		for i := 0; i < context.NArg(); i++ {
 			containerID := context.Args().Get(i)
-			err := StopContainer(runtimeClient, containerID, context.Int64("timeout"))
+			err := StopContainer(context.Context, runtimeClient, containerID, context.Int64("timeout"))
 			if err != nil {
 				return fmt.Errorf("stopping the container %q: %w", containerID, err)
 			}
@@ -341,7 +342,7 @@ var removeContainerCommand = &cli.Command{
 
 		ids := ctx.Args().Slice()
 		if ctx.Bool("all") {
-			r, err := runtimeClient.ListContainers(nil)
+			r, err := runtimeClient.ListContainers(ctx.Context, nil)
 			if err != nil {
 				return err
 			}
@@ -357,7 +358,7 @@ var removeContainerCommand = &cli.Command{
 
 		errored := false
 		for _, id := range ids {
-			resp, err := runtimeClient.ContainerStatus(id, false)
+			resp, err := runtimeClient.ContainerStatus(ctx.Context, id, false)
 			if err != nil {
 				logrus.Error(err)
 				errored = true
@@ -365,7 +366,7 @@ var removeContainerCommand = &cli.Command{
 			}
 			if resp.GetStatus().GetState() == pb.ContainerState_CONTAINER_RUNNING {
 				if ctx.Bool("force") {
-					if err := StopContainer(runtimeClient, id, 0); err != nil {
+					if err := StopContainer(ctx.Context, runtimeClient, id, 0); err != nil {
 						logrus.Errorf("stopping the container %q failed: %v", id, err)
 						errored = true
 						continue
@@ -377,7 +378,7 @@ var removeContainerCommand = &cli.Command{
 				}
 			}
 
-			err = RemoveContainer(runtimeClient, id)
+			err = RemoveContainer(ctx.Context, runtimeClient, id)
 			if err != nil {
 				logrus.Errorf("removing container %q failed: %v", id, err)
 				errored = true
@@ -423,7 +424,7 @@ var containerStatusCommand = &cli.Command{
 
 		for i := 0; i < context.NArg(); i++ {
 			containerID := context.Args().Get(i)
-			err := ContainerStatus(runtimeClient, containerID, context.String("output"), context.String("template"), context.Bool("quiet"))
+			err := ContainerStatus(context.Context, runtimeClient, containerID, context.String("output"), context.String("template"), context.Bool("quiet"))
 			if err != nil {
 				return fmt.Errorf("getting the status of the container %q: %w", containerID, err)
 			}
@@ -540,7 +541,7 @@ var listContainersCommand = &cli.Command{
 			return err
 		}
 
-		if err = ListContainers(runtimeClient, imageClient, opts); err != nil {
+		if err = ListContainers(context.Context, runtimeClient, imageClient, opts); err != nil {
 			return fmt.Errorf("listing containers: %w", err)
 		}
 		return nil
@@ -596,7 +597,7 @@ var runContainerCommand = &cli.Command{
 			return err
 		}
 
-		err = RunContainer(imageClient, runtimeClient, opts, context.String("runtime"))
+		err = RunContainer(context.Context, imageClient, runtimeClient, opts, context.String("runtime"))
 		if err != nil {
 			return fmt.Errorf("running container: %w", err)
 		}
@@ -628,6 +629,7 @@ var checkpointContainerCommand = &cli.Command{
 		for i := 0; i < context.NArg(); i++ {
 			containerID := context.Args().Get(i)
 			err := CheckpointContainer(
+				context.Context,
 				runtimeClient,
 				containerID,
 				context.String("export"),
@@ -642,6 +644,7 @@ var checkpointContainerCommand = &cli.Command{
 
 // RunContainer starts a container in the provided sandbox
 func RunContainer(
+	ctx context.Context,
 	iClient internalapi.ImageManagerService,
 	rClient internalapi.RuntimeService,
 	opts runOptions,
@@ -654,20 +657,20 @@ func RunContainer(
 	}
 	// set the timeout for the RunPodSandbox request to 0, because the
 	// timeout option is documented as being for container creation.
-	podID, err := RunPodSandbox(rClient, podSandboxConfig, runtime)
+	podID, err := RunPodSandbox(ctx, rClient, podSandboxConfig, runtime)
 	if err != nil {
 		return fmt.Errorf("run pod sandbox: %w", err)
 	}
 
 	// Create the container
 	containerOptions := createOptions{podID, &opts}
-	ctrID, err := CreateContainer(iClient, rClient, containerOptions)
+	ctrID, err := CreateContainer(ctx, iClient, rClient, containerOptions)
 	if err != nil {
 		return fmt.Errorf("creating container failed: %w", err)
 	}
 
 	// Start the container
-	err = StartContainer(rClient, ctrID)
+	err = StartContainer(ctx, rClient, ctrID)
 	if err != nil {
 		return fmt.Errorf("starting the container %q: %w", ctrID, err)
 	}
@@ -677,6 +680,7 @@ func RunContainer(
 // CreateContainer sends a CreateContainerRequest to the server, and parses
 // the returned CreateContainerResponse.
 func CreateContainer(
+	ctx context.Context,
 	iClient internalapi.ImageManagerService,
 	rClient internalapi.RuntimeService,
 	opts createOptions,
@@ -708,7 +712,7 @@ func CreateContainer(
 		// Try to pull the image before container creation
 		image := config.GetImage().GetImage()
 		ann := config.GetImage().GetAnnotations()
-		if _, err := PullImageWithSandbox(iClient, image, auth, podConfig, ann); err != nil {
+		if _, err := PullImageWithSandbox(ctx, iClient, image, auth, podConfig, ann); err != nil {
 			return "", err
 		}
 	}
@@ -719,7 +723,7 @@ func CreateContainer(
 		SandboxConfig: podConfig,
 	}
 	logrus.Debugf("CreateContainerRequest: %v", request)
-	r, err := rClient.CreateContainer(opts.podID, config, podConfig)
+	r, err := rClient.CreateContainer(ctx, opts.podID, config, podConfig)
 	logrus.Debugf("CreateContainerResponse: %v", r)
 	if err != nil {
 		return "", err
@@ -729,11 +733,11 @@ func CreateContainer(
 
 // StartContainer sends a StartContainerRequest to the server, and parses
 // the returned StartContainerResponse.
-func StartContainer(client internalapi.RuntimeService, id string) error {
+func StartContainer(ctx context.Context, client internalapi.RuntimeService, id string) error {
 	if id == "" {
 		return fmt.Errorf("ID cannot be empty")
 	}
-	if err := client.StartContainer(id); err != nil {
+	if err := client.StartContainer(ctx, id); err != nil {
 		return err
 	}
 	fmt.Println(id)
@@ -763,7 +767,7 @@ type updateOptions struct {
 
 // UpdateContainerResources sends an UpdateContainerResourcesRequest to the server, and parses
 // the returned UpdateContainerResourcesResponse.
-func UpdateContainerResources(client internalapi.RuntimeService, id string, opts updateOptions) error {
+func UpdateContainerResources(ctx context.Context, client internalapi.RuntimeService, id string, opts updateOptions) error {
 	if id == "" {
 		return fmt.Errorf("ID cannot be empty")
 	}
@@ -790,7 +794,7 @@ func UpdateContainerResources(client internalapi.RuntimeService, id string, opts
 	}
 	logrus.Debugf("UpdateContainerResourcesRequest: %v", request)
 	resources := &pb.ContainerResources{Linux: request.Linux}
-	if err := client.UpdateContainerResources(id, resources); err != nil {
+	if err := client.UpdateContainerResources(ctx, id, resources); err != nil {
 		return err
 	}
 	fmt.Println(id)
@@ -799,11 +803,11 @@ func UpdateContainerResources(client internalapi.RuntimeService, id string, opts
 
 // StopContainer sends a StopContainerRequest to the server, and parses
 // the returned StopContainerResponse.
-func StopContainer(client internalapi.RuntimeService, id string, timeout int64) error {
+func StopContainer(ctx context.Context, client internalapi.RuntimeService, id string, timeout int64) error {
 	if id == "" {
 		return fmt.Errorf("ID cannot be empty")
 	}
-	if err := client.StopContainer(id, timeout); err != nil {
+	if err := client.StopContainer(ctx, id, timeout); err != nil {
 		return err
 	}
 	fmt.Println(id)
@@ -812,6 +816,7 @@ func StopContainer(client internalapi.RuntimeService, id string, timeout int64) 
 
 // CheckpointContainer sends a CheckpointContainerRequest to the server
 func CheckpointContainer(
+	ctx context.Context,
 	rClient internalapi.RuntimeService,
 	ID string,
 	export string,
@@ -824,7 +829,7 @@ func CheckpointContainer(
 		Location:    export,
 	}
 	logrus.Debugf("CheckpointContainerRequest: %v", request)
-	err := rClient.CheckpointContainer(request)
+	err := rClient.CheckpointContainer(ctx, request)
 	if err != nil {
 		return err
 	}
@@ -834,11 +839,11 @@ func CheckpointContainer(
 
 // RemoveContainer sends a RemoveContainerRequest to the server, and parses
 // the returned RemoveContainerResponse.
-func RemoveContainer(client internalapi.RuntimeService, id string) error {
+func RemoveContainer(ctx context.Context, client internalapi.RuntimeService, id string) error {
 	if id == "" {
 		return fmt.Errorf("ID cannot be empty")
 	}
-	if err := client.RemoveContainer(id); err != nil {
+	if err := client.RemoveContainer(ctx, id); err != nil {
 		return err
 	}
 	fmt.Println(id)
@@ -878,7 +883,7 @@ func marshalContainerStatus(cs *pb.ContainerStatus) (string, error) {
 
 // ContainerStatus sends a ContainerStatusRequest to the server, and parses
 // the returned ContainerStatusResponse.
-func ContainerStatus(client internalapi.RuntimeService, id, output string, tmplStr string, quiet bool) error {
+func ContainerStatus(ctx context.Context, client internalapi.RuntimeService, id, output string, tmplStr string, quiet bool) error {
 	verbose := !(quiet)
 	if output == "" { // default to json output
 		output = "json"
@@ -891,7 +896,7 @@ func ContainerStatus(client internalapi.RuntimeService, id, output string, tmplS
 		Verbose:     verbose,
 	}
 	logrus.Debugf("ContainerStatusRequest: %v", request)
-	r, err := client.ContainerStatus(id, verbose)
+	r, err := client.ContainerStatus(ctx, id, verbose)
 	logrus.Debugf("ContainerStatusResponse: %v", r)
 	if err != nil {
 		return err
@@ -955,7 +960,7 @@ func ContainerStatus(client internalapi.RuntimeService, id, output string, tmplS
 
 // ListContainers sends a ListContainerRequest to the server, and parses
 // the returned ListContainerResponse.
-func ListContainers(runtimeClient internalapi.RuntimeService, imageClient internalapi.ImageManagerService, opts listOptions) error {
+func ListContainers(ctx context.Context, runtimeClient internalapi.RuntimeService, imageClient internalapi.ImageManagerService, opts listOptions) error {
 	filter := &pb.ContainerFilter{}
 	if opts.id != "" {
 		filter.Id = opts.id
@@ -994,7 +999,7 @@ func ListContainers(runtimeClient internalapi.RuntimeService, imageClient intern
 	if opts.labels != nil {
 		filter.LabelSelector = opts.labels
 	}
-	r, err := runtimeClient.ListContainers(filter)
+	r, err := runtimeClient.ListContainers(ctx, filter)
 	logrus.Debugf("ListContainerResponse: %v", r)
 	if err != nil {
 		return err
@@ -1017,7 +1022,7 @@ func ListContainers(runtimeClient internalapi.RuntimeService, imageClient intern
 		display.AddRow([]string{columnContainer, columnImage, columnCreated, columnState, columnName, columnAttempt, columnPodID, columnPodname})
 	}
 	for _, c := range r {
-		if match, err := matchesImage(imageClient, opts.image, c.GetImage().GetImage()); err != nil {
+		if match, err := matchesImage(ctx, imageClient, opts.image, c.GetImage().GetImage()); err != nil {
 			return fmt.Errorf("check image match: %w", err)
 		} else if !match {
 			continue
@@ -1042,7 +1047,7 @@ func ListContainers(runtimeClient internalapi.RuntimeService, imageClient intern
 				}
 			}
 			if opts.resolveImagePath {
-				orig, err := getRepoImage(imageClient, image)
+				orig, err := getRepoImage(ctx, imageClient, image)
 				if err != nil {
 					return fmt.Errorf("failed to fetch repo image %v", err)
 				}

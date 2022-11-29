@@ -17,6 +17,8 @@ limitations under the License.
 package validate
 
 import (
+	"context"
+
 	"github.com/kubernetes-sigs/cri-tools/pkg/framework"
 	internalapi "k8s.io/cri-api/pkg/apis"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
@@ -26,6 +28,7 @@ import (
 
 var _ = framework.KubeDescribe("Streaming", func() {
 	f := framework.NewDefaultCRIFramework()
+	ctx := context.Background()
 
 	var rc internalapi.RuntimeService
 	var ic internalapi.ImageManagerService
@@ -40,9 +43,9 @@ var _ = framework.KubeDescribe("Streaming", func() {
 
 		AfterEach(func() {
 			By("stop PodSandbox")
-			rc.StopPodSandbox(podID)
+			rc.StopPodSandbox(ctx, podID)
 			By("delete PodSandbox")
-			rc.RemovePodSandbox(podID)
+			rc.RemovePodSandbox(ctx, podID)
 		})
 
 		It("runtime should support portforward in host network", func() {
@@ -53,21 +56,21 @@ var _ = framework.KubeDescribe("Streaming", func() {
 					ContainerPort: webServerHostNetContainerPort,
 				},
 			}
-			podID, podConfig = createPodSandboxWithPortMapping(rc, portMappings, true)
+			podID, podConfig = createPodSandboxWithPortMapping(ctx, rc, portMappings, true)
 
 			By("create a web server container")
-			containerID := createHostNetWebServerContainer(rc, ic, podID, podConfig, "container-for-host-net-portforward-test")
+			containerID := createHostNetWebServerContainer(ctx, rc, ic, podID, podConfig, "container-for-host-net-portforward-test")
 
 			By("start the web server container")
-			startContainer(rc, containerID)
+			startContainer(ctx, rc, containerID)
 
 			By("ensure the web server container is serving")
-			checkMainPage(rc, "", webServerHostNetContainerPort, 0)
+			checkMainPage(ctx, rc, "", webServerHostNetContainerPort, 0)
 
-			req := createDefaultPortForward(rc, podID)
+			req := createDefaultPortForward(ctx, rc, podID)
 
 			By("check the output of portforward")
-			checkPortForward(rc, req, webServerHostPortForHostNetPortFroward, webServerHostNetContainerPort)
+			checkPortForward(ctx, rc, req, webServerHostPortForHostNetPortFroward, webServerHostNetContainerPort)
 		})
 
 	})

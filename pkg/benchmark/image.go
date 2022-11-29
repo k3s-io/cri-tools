@@ -17,6 +17,7 @@ limitations under the License.
 package benchmark
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"runtime"
@@ -51,7 +52,7 @@ var defaultImageListingBenchmarkImages = []string{
 var _ = framework.KubeDescribe("Image", func() {
 	var ic internalapi.ImageManagerService
 	f := framework.NewDefaultCRIFramework()
-
+	ctx := context.Background()
 	var testImageList []string = framework.TestContext.BenchmarkingParams.ImageListingBenchmarkImages
 	if len(testImageList) == 0 {
 		if runtime.GOARCH == "amd64" {
@@ -70,7 +71,7 @@ var _ = framework.KubeDescribe("Image", func() {
 			imageSpec := &runtimeapi.ImageSpec{
 				Image: imageName,
 			}
-			ic.RemoveImage(imageSpec)
+			ic.RemoveImage(ctx, imageSpec)
 		}
 	})
 
@@ -128,20 +129,20 @@ var _ = framework.KubeDescribe("Image", func() {
 				By(fmt.Sprintf("Pull Image %d", idx))
 				startTime := time.Now().UnixNano()
 				lastStartTime = startTime
-				imageId := framework.PullPublicImage(ic, imagePullingBenchmarkImage, nil)
+				imageId := framework.PullPublicImage(ctx, ic, imagePullingBenchmarkImage, nil)
 				lastEndTime = time.Now().UnixNano()
 				durations[0] = lastEndTime - lastStartTime
 
 				By(fmt.Sprintf("Status Image %d", idx))
 				lastStartTime = time.Now().UnixNano()
-				_, err = ic.ImageStatus(imageSpec, false)
+				_, err = ic.ImageStatus(ctx, imageSpec, false)
 				lastEndTime = time.Now().UnixNano()
 				durations[1] = lastEndTime - lastStartTime
 				framework.ExpectNoError(err, "failed to status Image: %v", err)
 
 				By(fmt.Sprintf("Remove Image %d", idx))
 				lastStartTime = time.Now().UnixNano()
-				err = ic.RemoveImage(imageSpec)
+				err = ic.RemoveImage(ctx, imageSpec)
 				lastEndTime = time.Now().UnixNano()
 				durations[2] = lastEndTime - lastStartTime
 				framework.ExpectNoError(err, "failed to remove Image: %v", err)
@@ -215,7 +216,7 @@ var _ = framework.KubeDescribe("Image", func() {
 
 				By(fmt.Sprintf("List Images %d", idx))
 				startTime := time.Now().UnixNano()
-				_, err = ic.ListImages(nil)
+				_, err = ic.ListImages(ctx, nil)
 				endTime := time.Now().UnixNano()
 				durations[0] = endTime - startTime
 				framework.ExpectNoError(err, "failed to List images: %v", err)

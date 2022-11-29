@@ -17,6 +17,7 @@ limitations under the License.
 package validate
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -32,7 +33,7 @@ import (
 
 var _ = framework.KubeDescribe("Networking", func() {
 	f := framework.NewDefaultCRIFramework()
-
+	ctx := context.Background()
 	var rc internalapi.RuntimeService
 	var ic internalapi.ImageManagerService
 
@@ -46,41 +47,41 @@ var _ = framework.KubeDescribe("Networking", func() {
 
 		AfterEach(func() {
 			By("stop PodSandbox")
-			rc.StopPodSandbox(podID)
+			rc.StopPodSandbox(ctx, podID)
 			By("delete PodSandbox")
-			rc.RemovePodSandbox(podID)
+			rc.RemovePodSandbox(ctx, podID)
 		})
 
 		It("runtime should support DNS config [Conformance]", func() {
 			By("create a PodSandbox with DNS config")
 			var podConfig *runtimeapi.PodSandboxConfig
-			podID, podConfig = createPodSandWithDNSConfig(rc)
+			podID, podConfig = createPodSandWithDNSConfig(ctx, rc)
 
 			By("create container")
-			containerID := framework.CreateDefaultContainer(rc, ic, podID, podConfig, "container-for-DNS-config-test-")
+			containerID := framework.CreateDefaultContainer(ctx, rc, ic, podID, podConfig, "container-for-DNS-config-test-")
 
 			By("start container")
-			startContainer(rc, containerID)
+			startContainer(ctx, rc, containerID)
 
 			By("check DNS config")
 			expectedContent := getDNSConfigContent
-			checkDNSConfig(rc, containerID, expectedContent)
+			checkDNSConfig(ctx, rc, containerID, expectedContent)
 		})
 
 		It("runtime should support set hostname [Conformance]", func() {
 			By("create a PodSandbox with hostname")
 			var podConfig *runtimeapi.PodSandboxConfig
 			const testHostname = "test-hostname"
-			podID, podConfig = createPodSandWithHostname(rc, testHostname)
+			podID, podConfig = createPodSandWithHostname(ctx, rc, testHostname)
 
 			By("create container")
-			containerID := framework.CreateDefaultContainer(rc, ic, podID, podConfig, "container-for-hostname-test-")
+			containerID := framework.CreateDefaultContainer(ctx, rc, ic, podID, podConfig, "container-for-hostname-test-")
 
 			By("start container")
-			startContainer(rc, containerID)
+			startContainer(ctx, rc, containerID)
 
 			By("check hostname")
-			checkHostname(rc, containerID, testHostname)
+			checkHostname(ctx, rc, containerID, testHostname)
 		})
 
 		It("runtime should support port mapping with only container port [Conformance]", func() {
@@ -91,16 +92,16 @@ var _ = framework.KubeDescribe("Networking", func() {
 					ContainerPort: webServerContainerPort,
 				},
 			}
-			podID, podConfig = createPodSandboxWithPortMapping(rc, portMappings, false)
+			podID, podConfig = createPodSandboxWithPortMapping(ctx, rc, portMappings, false)
 
 			By("create a web server container")
-			containerID := createWebServerContainer(rc, ic, podID, podConfig, "container-for-container-port")
+			containerID := createWebServerContainer(ctx, rc, ic, podID, podConfig, "container-for-container-port")
 
 			By("start the web server container")
-			startContainer(rc, containerID)
+			startContainer(ctx, rc, containerID)
 
 			By("check the port mapping with only container port")
-			checkMainPage(rc, podID, 0, webServerContainerPort)
+			checkMainPage(ctx, rc, podID, 0, webServerContainerPort)
 		})
 
 		It("runtime should support port mapping with host port and container port [Conformance]", func() {
@@ -112,22 +113,22 @@ var _ = framework.KubeDescribe("Networking", func() {
 					HostPort:      webServerHostPortForPortMapping,
 				},
 			}
-			podID, podConfig = createPodSandboxWithPortMapping(rc, portMappings, false)
+			podID, podConfig = createPodSandboxWithPortMapping(ctx, rc, portMappings, false)
 
 			By("create a web server container")
-			containerID := createWebServerContainer(rc, ic, podID, podConfig, "container-for-host-port")
+			containerID := createWebServerContainer(ctx, rc, ic, podID, podConfig, "container-for-host-port")
 
 			By("start the web server container")
-			startContainer(rc, containerID)
+			startContainer(ctx, rc, containerID)
 
 			By("check the port mapping with host port and container port")
-			checkMainPage(rc, "", webServerHostPortForPortMapping, 0)
+			checkMainPage(ctx, rc, "", webServerHostPortForPortMapping, 0)
 		})
 	})
 })
 
 // createPodSandWithHostname create a PodSandbox with hostname.
-func createPodSandWithHostname(c internalapi.RuntimeService, hostname string) (string, *runtimeapi.PodSandboxConfig) {
+func createPodSandWithHostname(ctx context.Context, c internalapi.RuntimeService, hostname string) (string, *runtimeapi.PodSandboxConfig) {
 	podSandboxName := "create-PodSandbox-with-hostname" + framework.NewUUID()
 	uid := framework.DefaultUIDPrefix + framework.NewUUID()
 	namespace := framework.DefaultNamespacePrefix + framework.NewUUID()
@@ -137,12 +138,12 @@ func createPodSandWithHostname(c internalapi.RuntimeService, hostname string) (s
 		Labels:   framework.DefaultPodLabels,
 	}
 
-	podID := framework.RunPodSandbox(c, config)
+	podID := framework.RunPodSandbox(ctx, c, config)
 	return podID, config
 }
 
 // createPodSandWithDNSConfig create a PodSandbox with DNS config.
-func createPodSandWithDNSConfig(c internalapi.RuntimeService) (string, *runtimeapi.PodSandboxConfig) {
+func createPodSandWithDNSConfig(ctx context.Context, c internalapi.RuntimeService) (string, *runtimeapi.PodSandboxConfig) {
 	podSandboxName := "create-PodSandbox-with-DNS-config" + framework.NewUUID()
 	uid := framework.DefaultUIDPrefix + framework.NewUUID()
 	namespace := framework.DefaultNamespacePrefix + framework.NewUUID()
@@ -157,12 +158,12 @@ func createPodSandWithDNSConfig(c internalapi.RuntimeService) (string, *runtimea
 		Labels: framework.DefaultPodLabels,
 	}
 
-	podID := framework.RunPodSandbox(c, config)
+	podID := framework.RunPodSandbox(ctx, c, config)
 	return podID, config
 }
 
 // createPodSandboxWithPortMapping create a PodSandbox with port mapping.
-func createPodSandboxWithPortMapping(c internalapi.RuntimeService, portMappings []*runtimeapi.PortMapping, hostNet bool) (string, *runtimeapi.PodSandboxConfig) {
+func createPodSandboxWithPortMapping(ctx context.Context, c internalapi.RuntimeService, portMappings []*runtimeapi.PortMapping, hostNet bool) (string, *runtimeapi.PodSandboxConfig) {
 	podSandboxName := "create-PodSandbox-with-port-mapping" + framework.NewUUID()
 	uid := framework.DefaultUIDPrefix + framework.NewUUID()
 	namespace := framework.DefaultNamespacePrefix + framework.NewUUID()
@@ -180,14 +181,14 @@ func createPodSandboxWithPortMapping(c internalapi.RuntimeService, portMappings 
 		}
 	}
 
-	podID := framework.RunPodSandbox(c, config)
+	podID := framework.RunPodSandbox(ctx, c, config)
 	return podID, config
 }
 
 // checkHostname checks the container hostname.
-func checkHostname(c internalapi.RuntimeService, containerID string, hostname string) {
+func checkHostname(ctx context.Context, c internalapi.RuntimeService, containerID string, hostname string) {
 	By("get the current hostname via execSync")
-	stdout, stderr, err := c.ExecSync(containerID, getHostnameCmd, time.Duration(defaultExecSyncTimeout)*time.Second)
+	stdout, stderr, err := c.ExecSync(ctx, containerID, getHostnameCmd, time.Duration(defaultExecSyncTimeout)*time.Second)
 	framework.ExpectNoError(err, "failed to execSync in container %q", containerID)
 	Expect(strings.EqualFold(strings.TrimSpace(string(stdout)), hostname)).To(BeTrue())
 	Expect(string(stderr)).To(BeEmpty(), "The stderr should be empty.")
@@ -195,9 +196,9 @@ func checkHostname(c internalapi.RuntimeService, containerID string, hostname st
 }
 
 // checkDNSConfig checks the content of /etc/resolv.conf.
-func checkDNSConfig(c internalapi.RuntimeService, containerID string, expectedContent []string) {
+func checkDNSConfig(ctx context.Context, c internalapi.RuntimeService, containerID string, expectedContent []string) {
 	By("get the current dns config via execSync")
-	stdout, stderr, err := c.ExecSync(containerID, getDNSConfigCmd, time.Duration(defaultExecSyncTimeout)*time.Second)
+	stdout, stderr, err := c.ExecSync(ctx, containerID, getDNSConfigCmd, time.Duration(defaultExecSyncTimeout)*time.Second)
 	framework.ExpectNoError(err, "failed to execSync in container %q", containerID)
 	for _, content := range expectedContent {
 		Expect(string(stdout)).To(ContainSubstring(content), "The stdout output of execSync should contain %q", content)
@@ -207,29 +208,29 @@ func checkDNSConfig(c internalapi.RuntimeService, containerID string, expectedCo
 }
 
 // createWebServerContainer creates a container running a web server
-func createWebServerContainer(rc internalapi.RuntimeService, ic internalapi.ImageManagerService, podID string, podConfig *runtimeapi.PodSandboxConfig, prefix string) string {
+func createWebServerContainer(ctx context.Context, rc internalapi.RuntimeService, ic internalapi.ImageManagerService, podID string, podConfig *runtimeapi.PodSandboxConfig, prefix string) string {
 	containerName := prefix + framework.NewUUID()
 	containerConfig := &runtimeapi.ContainerConfig{
 		Metadata: framework.BuildContainerMetadata(containerName, framework.DefaultAttempt),
 		Image:    &runtimeapi.ImageSpec{Image: webServerImage},
 		Linux:    &runtimeapi.LinuxContainerConfig{},
 	}
-	return framework.CreateContainer(rc, ic, containerConfig, podID, podConfig)
+	return framework.CreateContainer(ctx, rc, ic, containerConfig, podID, podConfig)
 }
 
 // createHostNetWebServerContainer creates a web server container using webServerHostNetContainerPort.
-func createHostNetWebServerContainer(rc internalapi.RuntimeService, ic internalapi.ImageManagerService, podID string, podConfig *runtimeapi.PodSandboxConfig, prefix string) string {
+func createHostNetWebServerContainer(ctx context.Context, rc internalapi.RuntimeService, ic internalapi.ImageManagerService, podID string, podConfig *runtimeapi.PodSandboxConfig, prefix string) string {
 	containerName := prefix + framework.NewUUID()
 	containerConfig := &runtimeapi.ContainerConfig{
 		Metadata: framework.BuildContainerMetadata(containerName, framework.DefaultAttempt),
 		Image:    &runtimeapi.ImageSpec{Image: hostNetWebServerImage},
 		Linux:    &runtimeapi.LinuxContainerConfig{},
 	}
-	return framework.CreateContainer(rc, ic, containerConfig, podID, podConfig)
+	return framework.CreateContainer(ctx, rc, ic, containerConfig, podID, podConfig)
 }
 
 // checkMainPage check if the we can get the main page of the pod via given IP:port.
-func checkMainPage(c internalapi.RuntimeService, podID string, hostPort int32, containerPort int32) {
+func checkMainPage(ctx context.Context, c internalapi.RuntimeService, podID string, hostPort int32, containerPort int32) {
 	By("get the IP:port needed to be checked")
 	var err error
 	var resp *http.Response
@@ -238,7 +239,7 @@ func checkMainPage(c internalapi.RuntimeService, podID string, hostPort int32, c
 	if hostPort != 0 {
 		url += "127.0.0.1:" + strconv.Itoa(int(hostPort))
 	} else {
-		status := getPodSandboxStatus(c, podID)
+		status := getPodSandboxStatus(ctx, c, podID)
 		Expect(status.GetNetwork()).NotTo(BeNil(), "The network in status should not be nil.")
 		Expect(status.GetNetwork().Ip).NotTo(BeNil(), "The IP should not be nil.")
 		url += status.GetNetwork().Ip + ":" + strconv.Itoa(int(containerPort))

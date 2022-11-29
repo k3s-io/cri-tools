@@ -17,6 +17,7 @@ limitations under the License.
 package crictl
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 
@@ -59,7 +60,7 @@ var runtimeAttachCommand = &cli.Command{
 			tty:   context.Bool("tty"),
 			stdin: context.Bool("stdin"),
 		}
-		err = Attach(runtimeClient, opts)
+		err = Attach(context.Context, runtimeClient, opts)
 		if err != nil {
 			return fmt.Errorf("attaching running container failed: %w", err)
 
@@ -69,7 +70,7 @@ var runtimeAttachCommand = &cli.Command{
 }
 
 // Attach sends an AttachRequest to server, and parses the returned AttachResponse
-func Attach(client internalapi.RuntimeService, opts attachOptions) error {
+func Attach(ctx context.Context, client internalapi.RuntimeService, opts attachOptions) error {
 	if opts.id == "" {
 		return fmt.Errorf("ID cannot be empty")
 
@@ -82,7 +83,7 @@ func Attach(client internalapi.RuntimeService, opts attachOptions) error {
 		Stderr:      !opts.tty,
 	}
 	logrus.Debugf("AttachRequest: %v", request)
-	r, err := client.Attach(request)
+	r, err := client.Attach(ctx, request)
 	logrus.Debugf("AttachResponse: %v", r)
 	if err != nil {
 		return err

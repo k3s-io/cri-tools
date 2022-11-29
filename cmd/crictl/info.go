@@ -65,7 +65,7 @@ var runtimeStatusCommand = &cli.Command{
 func Info(cliContext *cli.Context, client internalapi.RuntimeService) error {
 	request := &pb.StatusRequest{Verbose: !cliContext.Bool("quiet")}
 	logrus.Debugf("StatusRequest: %v", request)
-	r, err := client.Status(request.Verbose)
+	r, err := client.Status(cliContext.Context, request.Verbose)
 	logrus.Debugf("StatusResponse: %v", r)
 	if err != nil {
 		return err

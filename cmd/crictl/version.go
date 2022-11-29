@@ -17,6 +17,7 @@ limitations under the License.
 package crictl
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/sirupsen/logrus"
@@ -34,7 +35,7 @@ var runtimeVersionCommand = &cli.Command{
 		if err != nil {
 			return err
 		}
-		err = Version(runtimeClient, string(remote.CRIVersionV1))
+		err = Version(context.Context, runtimeClient, string(remote.CRIVersionV1))
 		if err != nil {
 			return fmt.Errorf("getting the runtime version: %w", err)
 		}
@@ -43,10 +44,10 @@ var runtimeVersionCommand = &cli.Command{
 }
 
 // Version sends a VersionRequest to the server, and parses the returned VersionResponse.
-func Version(client internalapi.RuntimeService, version string) error {
+func Version(ctx context.Context, client internalapi.RuntimeService, version string) error {
 	request := &pb.VersionRequest{Version: version}
 	logrus.Debugf("VersionRequest: %v", request)
-	r, err := client.Version(version)
+	r, err := client.Version(ctx, version)
 	logrus.Debugf("VersionResponse: %v", r)
 	if err != nil {
 		return err

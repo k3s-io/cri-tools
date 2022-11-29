@@ -17,6 +17,7 @@ limitations under the License.
 package validate
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -38,6 +39,7 @@ const (
 
 var _ = framework.KubeDescribe("Multiple Containers [Conformance]", func() {
 	f := framework.NewDefaultCRIFramework()
+	ctx := context.Background()
 
 	var rc internalapi.RuntimeService
 	var ic internalapi.ImageManagerService
@@ -53,30 +55,30 @@ var _ = framework.KubeDescribe("Multiple Containers [Conformance]", func() {
 
 		BeforeEach(func() {
 			By("create a PodSandbox")
-			podID, podConfig, logDir = createMultiContainerTestPodSandbox(rc)
+			podID, podConfig, logDir = createMultiContainerTestPodSandbox(ctx, rc)
 
 			By("create a httpd container")
-			httpdContainerID = createMultiContainerTestHttpdContainer(rc, ic, "httpd", podID, podConfig)
+			httpdContainerID = createMultiContainerTestHttpdContainer(ctx, rc, ic, "httpd", podID, podConfig)
 			By("start the httpd container")
-			testStartContainer(rc, httpdContainerID)
+			testStartContainer(ctx, rc, httpdContainerID)
 
 			By("create a busybox container")
-			busyboxContainerID = createMultiContainerTestBusyboxContainer(rc, ic, "busybox", podID, podConfig)
+			busyboxContainerID = createMultiContainerTestBusyboxContainer(ctx, rc, ic, "busybox", podID, podConfig)
 			By("start the busybox container")
-			testStartContainer(rc, busyboxContainerID)
+			testStartContainer(ctx, rc, busyboxContainerID)
 		})
 
 		AfterEach(func() {
 			By("stop PodSandbox")
-			Expect(rc.StopPodSandbox(podID)).To(Succeed())
+			Expect(rc.StopPodSandbox(ctx, podID)).To(Succeed())
 			By("delete PodSandbox")
-			Expect(rc.RemovePodSandbox(podID)).To(Succeed())
+			Expect(rc.RemovePodSandbox(ctx, podID)).To(Succeed())
 			By("cleanup log path")
 			Expect(os.RemoveAll(logDir)).To(Succeed())
 		})
 
 		It("should support network", func() {
-			checkMainPage(rc, podID, 0, httpdContainerPort)
+			checkMainPage(ctx, rc, podID, 0, httpdContainerPort)
 		})
 
 		It("should support container log", func() {
@@ -89,26 +91,26 @@ var _ = framework.KubeDescribe("Multiple Containers [Conformance]", func() {
 					return strings.Contains(string(content), expected), nil
 				}
 			}
-			httpdStatus, err := rc.ContainerStatus(httpdContainerID, false)
+			httpdStatus, err := rc.ContainerStatus(ctx, httpdContainerID, false)
 			Expect(err).NotTo(HaveOccurred(), "get httpd container status")
 			Eventually(verifyContainerLog(httpdStatus.GetStatus().GetLogPath(),
 				"httpd -D FOREGROUND"), time.Minute, 100*time.Millisecond).Should(BeTrue())
 
-			busyboxStatus, err := rc.ContainerStatus(busyboxContainerID, false)
+			busyboxStatus, err := rc.ContainerStatus(ctx, busyboxContainerID, false)
 			Expect(err).NotTo(HaveOccurred(), "get busybox container status")
 			Eventually(verifyContainerLog(busyboxStatus.GetStatus().GetLogPath(),
 				defaultLog), time.Minute, 100*time.Millisecond).Should(BeTrue())
 		})
 
 		It("should support container exec", func() {
-			Expect(execSyncContainer(rc, httpdContainerID, []string{"echo", "httpd"})).To(Equal("httpd\n"))
-			Expect(execSyncContainer(rc, busyboxContainerID, []string{"echo", "busybox"})).To(Equal("busybox\n"))
+			Expect(execSyncContainer(ctx, rc, httpdContainerID, []string{"echo", "httpd"})).To(Equal("httpd\n"))
+			Expect(execSyncContainer(ctx, rc, busyboxContainerID, []string{"echo", "busybox"})).To(Equal("busybox\n"))
 		})
 	})
 })
 
 // createMultiContainerTestPodSandbox creates a sandbox with log directory and a container port for httpd container.
-func createMultiContainerTestPodSandbox(c internalapi.RuntimeService) (string, *runtimeapi.PodSandboxConfig, string) {
+func createMultiContainerTestPodSandbox(ctx context.Context, c internalapi.RuntimeService) (string, *runtimeapi.PodSandboxConfig, string) {
 	podSandboxName := "PodSandbox-for-multi-container-test-" + framework.NewUUID()
 	uid := framework.DefaultUIDPrefix + framework.NewUUID()
 	namespace := framework.DefaultNamespacePrefix + framework.NewUUID()
@@ -123,11 +125,11 @@ func createMultiContainerTestPodSandbox(c internalapi.RuntimeService) (string, *
 		},
 		Labels: framework.DefaultPodLabels,
 	}
-	return framework.RunPodSandbox(c, podConfig), podConfig, logDir
+	return framework.RunPodSandbox(ctx, c, podConfig), podConfig, logDir
 }
 
 // createMultiContainerTestHttpdContainer creates an httpd container.
-func createMultiContainerTestHttpdContainer(rc internalapi.RuntimeService, ic internalapi.ImageManagerService, prefix string,
+func createMultiContainerTestHttpdContainer(ctx context.Context, rc internalapi.RuntimeService, ic internalapi.ImageManagerService, prefix string,
 	podID string, podConfig *runtimeapi.PodSandboxConfig) string {
 	containerName := prefix + framework.NewUUID()
 	containerConfig := &runtimeapi.ContainerConfig{
@@ -136,11 +138,11 @@ func createMultiContainerTestHttpdContainer(rc internalapi.RuntimeService, ic in
 		Linux:    &runtimeapi.LinuxContainerConfig{},
 		LogPath:  fmt.Sprintf("%s.log", containerName),
 	}
-	return framework.CreateContainer(rc, ic, containerConfig, podID, podConfig)
+	return framework.CreateContainer(ctx, rc, ic, containerConfig, podID, podConfig)
 }
 
 // createMultiContainerTestBusyboxContainer creates a busybox container.
-func createMultiContainerTestBusyboxContainer(rc internalapi.RuntimeService, ic internalapi.ImageManagerService,
+func createMultiContainerTestBusyboxContainer(ctx context.Context, rc internalapi.RuntimeService, ic internalapi.ImageManagerService,
 	prefix string, podID string, podConfig *runtimeapi.PodSandboxConfig) string {
 	containerName := prefix + framework.NewUUID()
 	containerConfig := &runtimeapi.ContainerConfig{
@@ -149,5 +151,5 @@ func createMultiContainerTestBusyboxContainer(rc internalapi.RuntimeService, ic 
 		Command:  []string{"sh", "-c", "echo " + defaultLog + "; sleep 1000"},
 		LogPath:  fmt.Sprintf("%s.log", containerName),
 	}
-	return framework.CreateContainer(rc, ic, containerConfig, podID, podConfig)
+	return framework.CreateContainer(ctx, rc, ic, containerConfig, podID, podConfig)
 }

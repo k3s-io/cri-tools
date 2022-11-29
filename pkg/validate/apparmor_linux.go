@@ -18,6 +18,7 @@ package validate
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -55,7 +56,7 @@ profile cri-validate-apparmor-test-audit-write flags=(attach_disconnected) {
 
 var _ = framework.KubeDescribe("AppArmor", func() {
 	f := framework.NewDefaultCRIFramework()
-
+	ctx := context.Background()
 	var rc internalapi.RuntimeService
 	var ic internalapi.ImageManagerService
 
@@ -71,38 +72,38 @@ var _ = framework.KubeDescribe("AppArmor", func() {
 			var sandboxConfig *runtimeapi.PodSandboxConfig
 
 			BeforeEach(func() {
-				sandboxID, sandboxConfig = framework.CreatePodSandboxForContainer(rc)
+				sandboxID, sandboxConfig = framework.CreatePodSandboxForContainer(ctx, rc)
 			})
 
 			AfterEach(func() {
 				By("stop PodSandbox")
-				rc.StopPodSandbox(sandboxID)
+				rc.StopPodSandbox(ctx, sandboxID)
 				By("delete PodSandbox")
-				rc.RemovePodSandbox(sandboxID)
+				rc.RemovePodSandbox(ctx, sandboxID)
 			})
 
 			It("should fail with an unloaded profile", func() {
 				profile := apparmorProfileNamePrefix + "non-existent-profile"
-				containerID := createContainerWithAppArmor(rc, ic, sandboxID, sandboxConfig, profile, false)
+				containerID := createContainerWithAppArmor(ctx, rc, ic, sandboxID, sandboxConfig, profile, false)
 				Expect(containerID).To(BeEmpty())
 			})
 
 			It("should enforce a profile blocking writes", func() {
 				profile := apparmorProfileNamePrefix + "cri-validate-apparmor-test-deny-write"
-				containerID := createContainerWithAppArmor(rc, ic, sandboxID, sandboxConfig, profile, true)
-				checkContainerApparmor(rc, containerID, false)
+				containerID := createContainerWithAppArmor(ctx, rc, ic, sandboxID, sandboxConfig, profile, true)
+				checkContainerApparmor(ctx, rc, containerID, false)
 			})
 
 			It("should enforce a permissive profile", func() {
 				profile := apparmorProfileNamePrefix + "cri-validate-apparmor-test-audit-write"
-				containerID := createContainerWithAppArmor(rc, ic, sandboxID, sandboxConfig, profile, true)
-				checkContainerApparmor(rc, containerID, true)
+				containerID := createContainerWithAppArmor(ctx, rc, ic, sandboxID, sandboxConfig, profile, true)
+				checkContainerApparmor(ctx, rc, containerID, true)
 			})
 		})
 	}
 })
 
-func createContainerWithAppArmor(rc internalapi.RuntimeService, ic internalapi.ImageManagerService, sandboxID string, sandboxConfig *runtimeapi.PodSandboxConfig, profile string, shouldSucceed bool) string {
+func createContainerWithAppArmor(ctx context.Context, rc internalapi.RuntimeService, ic internalapi.ImageManagerService, sandboxID string, sandboxConfig *runtimeapi.PodSandboxConfig, profile string, shouldSucceed bool) string {
 	By("create a container with apparmor")
 	containerName := "apparmor-test-" + framework.NewUUID()
 	containerConfig := &runtimeapi.ContainerConfig{
@@ -116,16 +117,16 @@ func createContainerWithAppArmor(rc internalapi.RuntimeService, ic internalapi.I
 		},
 	}
 
-	containerID, err := framework.CreateContainerWithError(rc, ic, containerConfig, sandboxID, sandboxConfig)
+	containerID, err := framework.CreateContainerWithError(ctx, rc, ic, containerConfig, sandboxID, sandboxConfig)
 	if shouldSucceed {
 		Expect(err).To(BeNil())
 		By("start container with apparmor")
-		err := rc.StartContainer(containerID)
+		err := rc.StartContainer(ctx, containerID)
 		Expect(err).NotTo(HaveOccurred())
 
 		// wait container started and check the status.
 		Eventually(func() runtimeapi.ContainerState {
-			return getContainerStatus(rc, containerID).State
+			return getContainerStatus(ctx, rc, containerID).State
 		}, time.Minute, time.Second*4).Should(Equal(runtimeapi.ContainerState_CONTAINER_EXITED))
 	} else {
 		Expect(err).To(HaveOccurred())
@@ -134,9 +135,9 @@ func createContainerWithAppArmor(rc internalapi.RuntimeService, ic internalapi.I
 	return containerID
 }
 
-func checkContainerApparmor(rc internalapi.RuntimeService, containerID string, shoudRun bool) {
+func checkContainerApparmor(ctx context.Context, rc internalapi.RuntimeService, containerID string, shoudRun bool) {
 	By("get container status")
-	resp, err := rc.ContainerStatus(containerID, false)
+	resp, err := rc.ContainerStatus(ctx, containerID, false)
 	Expect(err).NotTo(HaveOccurred())
 
 	if shoudRun {

@@ -18,6 +18,7 @@ package crictl
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -326,15 +327,15 @@ func matchesRegex(pattern, target string) bool {
 	return matched
 }
 
-func matchesImage(imageClient internalapi.ImageManagerService, image string, containerImage string) (bool, error) {
+func matchesImage(ctx context.Context, imageClient internalapi.ImageManagerService, image string, containerImage string) (bool, error) {
 	if image == "" {
 		return true, nil
 	}
-	r1, err := ImageStatus(imageClient, image, false)
+	r1, err := ImageStatus(ctx, imageClient, image, false)
 	if err != nil {
 		return false, err
 	}
-	r2, err := ImageStatus(imageClient, containerImage, false)
+	r2, err := ImageStatus(ctx, imageClient, containerImage, false)
 	if err != nil {
 		return false, err
 	}
@@ -345,8 +346,8 @@ func matchesImage(imageClient internalapi.ImageManagerService, image string, con
 	return r1.Image.Id == r2.Image.Id, nil
 }
 
-func getRepoImage(imageClient internalapi.ImageManagerService, image string) (string, error) {
-	r, err := ImageStatus(imageClient, image, false)
+func getRepoImage(ctx context.Context, imageClient internalapi.ImageManagerService, image string) (string, error) {
+	r, err := ImageStatus(ctx, imageClient, image, false)
 	if err != nil {
 		return "", err
 	}

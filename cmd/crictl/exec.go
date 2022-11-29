@@ -17,6 +17,7 @@ limitations under the License.
 package crictl
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -85,7 +86,7 @@ var runtimeExecCommand = &cli.Command{
 			cmd:     context.Args().Slice()[1:],
 		}
 		if context.Bool("sync") {
-			exitCode, err := ExecSync(runtimeClient, opts)
+			exitCode, err := ExecSync(context.Context, runtimeClient, opts)
 			if err != nil {
 				return fmt.Errorf("execing command in container synchronously: %w", err)
 			}
@@ -94,7 +95,7 @@ var runtimeExecCommand = &cli.Command{
 			}
 			return nil
 		}
-		err = Exec(runtimeClient, opts)
+		err = Exec(context.Context, runtimeClient, opts)
 		if err != nil {
 			return fmt.Errorf("execing command in container: %w", err)
 		}
@@ -105,7 +106,7 @@ var runtimeExecCommand = &cli.Command{
 // ExecSync sends an ExecSyncRequest to the server, and parses
 // the returned ExecSyncResponse. The function returns the corresponding exit
 // code beside an general error.
-func ExecSync(client internalapi.RuntimeService, opts execOptions) (int, error) {
+func ExecSync(ctx context.Context, client internalapi.RuntimeService, opts execOptions) (int, error) {
 	request := &pb.ExecSyncRequest{
 		ContainerId: opts.id,
 		Cmd:         opts.cmd,
@@ -113,7 +114,7 @@ func ExecSync(client internalapi.RuntimeService, opts execOptions) (int, error) 
 	}
 	logrus.Debugf("ExecSyncRequest: %v", request)
 	timeoutDuration := time.Duration(opts.timeout) * time.Second
-	stdout, stderr, err := client.ExecSync(opts.id, opts.cmd, timeoutDuration)
+	stdout, stderr, err := client.ExecSync(ctx, opts.id, opts.cmd, timeoutDuration)
 	if err != nil {
 		return 1, err
 	}
@@ -123,7 +124,7 @@ func ExecSync(client internalapi.RuntimeService, opts execOptions) (int, error) 
 }
 
 // Exec sends an ExecRequest to server, and parses the returned ExecResponse
-func Exec(client internalapi.RuntimeService, opts execOptions) error {
+func Exec(ctx context.Context, client internalapi.RuntimeService, opts execOptions) error {
 	request := &pb.ExecRequest{
 		ContainerId: opts.id,
 		Cmd:         opts.cmd,
@@ -134,7 +135,7 @@ func Exec(client internalapi.RuntimeService, opts execOptions) error {
 	}
 
 	logrus.Debugf("ExecRequest: %v", request)
-	r, err := client.Exec(request)
+	r, err := client.Exec(ctx, request)
 	logrus.Debugf("ExecResponse: %v", r)
 	if err != nil {
 		return err

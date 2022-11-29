@@ -17,6 +17,7 @@ limitations under the License.
 package validate
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"path"
@@ -33,7 +34,7 @@ import (
 
 var _ = framework.KubeDescribe("Container Mount Propagation", func() {
 	f := framework.NewDefaultCRIFramework()
-
+	ctx := context.Background()
 	var rc internalapi.RuntimeService
 	var ic internalapi.ImageManagerService
 
@@ -47,14 +48,14 @@ var _ = framework.KubeDescribe("Container Mount Propagation", func() {
 		var podConfig *runtimeapi.PodSandboxConfig
 
 		BeforeEach(func() {
-			podID, podConfig = createPrivilegedPodSandbox(rc, true)
+			podID, podConfig = createPrivilegedPodSandbox(ctx, rc, true)
 		})
 
 		AfterEach(func() {
 			By("stop PodSandbox")
-			rc.StopPodSandbox(podID)
+			rc.StopPodSandbox(ctx, podID)
 			By("delete PodSandbox")
-			rc.RemovePodSandbox(podID)
+			rc.RemovePodSandbox(ctx, podID)
 		})
 
 		It("mount with 'rprivate' should not support propagation", func() {
@@ -63,27 +64,27 @@ var _ = framework.KubeDescribe("Container Mount Propagation", func() {
 			defer clearHostPath() // clean up the TempDir
 
 			By("create container with volume")
-			containerID := createMountPropagationContainer(rc, ic, "mount-propagation-test-", podID, podConfig, mntSource, runtimeapi.MountPropagation_PROPAGATION_PRIVATE)
+			containerID := createMountPropagationContainer(ctx, rc, ic, "mount-propagation-test-", podID, podConfig, mntSource, runtimeapi.MountPropagation_PROPAGATION_PRIVATE)
 
 			By("test start container with volume")
-			testStartContainer(rc, containerID)
+			testStartContainer(ctx, rc, containerID)
 
 			By("create a propatation mount point in host")
 			createPropagationMountPoint(propagationSrcDir, propagationMntPoint)
 
 			By("check whether propagationMntPoint contains file or dir in container")
 			command := []string{"ls", "-A", propagationMntPoint}
-			output := execSyncContainer(rc, containerID, command)
+			output := execSyncContainer(ctx, rc, containerID, command)
 			Expect(len(output)).To(BeZero(), "len(output) should be zero.")
 
 			By("create a directory named containerMntPoint as a mount point in container")
 			containerMntPoint := path.Join(mntSource, "containerMntPoint")
 			command = []string{"sh", "-c", "mkdir -p " + containerMntPoint}
-			execSyncContainer(rc, containerID, command)
+			execSyncContainer(ctx, rc, containerID, command)
 
 			By("mount /etc to the mount point in container")
 			command = []string{"sh", "-c", "mount --bind /etc " + containerMntPoint}
-			execSyncContainer(rc, containerID, command)
+			execSyncContainer(ctx, rc, containerID, command)
 
 			By("check whether containerMntPoint contains file or dir in host")
 			fileInfo, err := ioutil.ReadDir(containerMntPoint)
@@ -97,27 +98,27 @@ var _ = framework.KubeDescribe("Container Mount Propagation", func() {
 			defer clearHostPath() // clean up the TempDir
 
 			By("create container with volume")
-			containerID := createMountPropagationContainer(rc, ic, "mount-propagation-test-", podID, podConfig, mntSource, runtimeapi.MountPropagation_PROPAGATION_BIDIRECTIONAL)
+			containerID := createMountPropagationContainer(ctx, rc, ic, "mount-propagation-test-", podID, podConfig, mntSource, runtimeapi.MountPropagation_PROPAGATION_BIDIRECTIONAL)
 
 			By("test start container with volume")
-			testStartContainer(rc, containerID)
+			testStartContainer(ctx, rc, containerID)
 
 			By("create a propatation mount point in host")
 			createPropagationMountPoint(propagationSrcDir, propagationMntPoint)
 
 			By("check whether propagationMntPoint contains file or dir in container")
 			command := []string{"ls", "-A", propagationMntPoint}
-			output := execSyncContainer(rc, containerID, command)
+			output := execSyncContainer(ctx, rc, containerID, command)
 			Expect(len(output)).NotTo(BeZero(), "len(output) should not be zero.")
 
 			By("create a directory named containerMntPoint as a mount point in container")
 			containerMntPoint := path.Join(mntSource, "containerMntPoint")
 			command = []string{"sh", "-c", "mkdir -p " + containerMntPoint}
-			execSyncContainer(rc, containerID, command)
+			execSyncContainer(ctx, rc, containerID, command)
 
 			By("mount /etc to the mount point in container")
 			command = []string{"sh", "-c", "mount --bind /etc " + containerMntPoint}
-			execSyncContainer(rc, containerID, command)
+			execSyncContainer(ctx, rc, containerID, command)
 
 			By("check whether containerMntPoint contains file or dir in host")
 			fileInfo, err := ioutil.ReadDir(containerMntPoint)
@@ -131,27 +132,27 @@ var _ = framework.KubeDescribe("Container Mount Propagation", func() {
 			defer clearHostPath() // clean up the TempDir
 
 			By("create container with volume")
-			containerID := createMountPropagationContainer(rc, ic, "mount-propagation-test-", podID, podConfig, mntSource, runtimeapi.MountPropagation_PROPAGATION_HOST_TO_CONTAINER)
+			containerID := createMountPropagationContainer(ctx, rc, ic, "mount-propagation-test-", podID, podConfig, mntSource, runtimeapi.MountPropagation_PROPAGATION_HOST_TO_CONTAINER)
 
 			By("test start container with volume")
-			testStartContainer(rc, containerID)
+			testStartContainer(ctx, rc, containerID)
 
 			By("create a propatation mount point in host")
 			createPropagationMountPoint(propagationSrcDir, propagationMntPoint)
 
 			By("check whether propagationMntPoint contains file or dir in container")
 			command := []string{"ls", "-A", propagationMntPoint}
-			output := execSyncContainer(rc, containerID, command)
+			output := execSyncContainer(ctx, rc, containerID, command)
 			Expect(len(output)).NotTo(BeZero(), "len(output) should not be zero.")
 
 			By("create a directory named containerMntPoint as a mount point in container")
 			containerMntPoint := path.Join(mntSource, "containerMntPoint")
 			command = []string{"sh", "-c", "mkdir -p " + containerMntPoint}
-			execSyncContainer(rc, containerID, command)
+			execSyncContainer(ctx, rc, containerID, command)
 
 			By("mount /etc to the mount point in container")
 			command = []string{"sh", "-c", "mount --bind /etc " + containerMntPoint}
-			execSyncContainer(rc, containerID, command)
+			execSyncContainer(ctx, rc, containerID, command)
 
 			By("check whether containerMntPoint contains file or dir in host")
 			fileInfo, err := ioutil.ReadDir(containerMntPoint)
@@ -215,6 +216,7 @@ func createHostPathForMountPropagation(podID string, propagationOpt runtimeapi.M
 // privileged security constraints. It also validates the container status
 // after creation and fails if any error occurs.
 func createMountPropagationContainer(
+	ctx context.Context,
 	rc internalapi.RuntimeService,
 	ic internalapi.ImageManagerService,
 	prefix string,
@@ -244,10 +246,10 @@ func createMountPropagationContainer(
 		},
 	}
 
-	containerID := framework.CreateContainer(rc, ic, containerConfig, podID, podConfig)
+	containerID := framework.CreateContainer(ctx, rc, ic, containerConfig, podID, podConfig)
 
 	By("verifying container status")
-	resp, err := rc.ContainerStatus(containerID, true)
+	resp, err := rc.ContainerStatus(ctx, containerID, true)
 	framework.ExpectNoError(err, "unable to get container status")
 	Expect(len(resp.Status.Mounts), 1)
 	Expect(resp.Status.Mounts[0].ContainerPath).To(Equal(hostPath))
