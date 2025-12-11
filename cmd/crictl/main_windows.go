@@ -23,8 +23,10 @@ import (
 	"path/filepath"
 )
 
-var defaultRuntimeEndpoints = []string{"npipe:////./pipe/containerd-containerd", "npipe:////./pipe/cri-dockerd"}
-var defaultConfigPath string
+var (
+	defaultRuntimeEndpoints = []string{"npipe:////./pipe/containerd-containerd", "npipe:////./pipe/cri-dockerd"}
+	defaultConfigPath       string
+)
 
 var shutdownSignals = []os.Signal{os.Interrupt}
 
