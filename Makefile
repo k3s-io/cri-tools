@@ -56,7 +56,8 @@ GOLANGCI_LINT_VERSION := v2.10.1
 REPO_INFRA_VERSION = v0.2.5
 
 GINKGO := $(BUILD_BIN_PATH)/ginkgo
-GOLANGCI_LINT := $(BUILD_BIN_PATH)/golangci-lint
+GOLANGCI_LINT_DIR := $(BUILD_BIN_PATH)/golangci-lint-$(GOLANGCI_LINT_VERSION)
+GOLANGCI_LINT := $(GOLANGCI_LINT_DIR)/golangci-lint
 ZEITGEIST := $(BUILD_BIN_PATH)/zeitgeist
 VERIFY_BOILERPLATE := $(BUILD_BIN_PATH)/verify_boilerplate.py
 
@@ -133,6 +134,10 @@ release: ## Build a release.
 verify-lint: $(GOLANGCI_LINT) ## Run golangci-lint.
 	$(GOLANGCI_LINT) run
 
+.PHONY: lint-fix
+lint-fix: $(GOLANGCI_LINT) ## Run golangci-lint with fix.
+	$(GOLANGCI_LINT) run --fix
+
 .PHONY: verify-boilerplate
 verify-boilerplate: $(VERIFY_BOILERPLATE) ## Verify the boilerplate headers.
 	$(VERIFY_BOILERPLATE) --boilerplate-dir hack/boilerplate
@@ -201,11 +206,13 @@ $(GINKGO):
 install.lint: $(GOLANGCI_LINT) ## Install golangci-lint.
 
 $(GOLANGCI_LINT):
+	mkdir -p $(GOLANGCI_LINT_DIR)
 	export \
 		VERSION=$(GOLANGCI_LINT_VERSION) \
 		URL=https://raw.githubusercontent.com/golangci/golangci-lint \
-		BINDIR=${BUILD_BIN_PATH} && \
+		BINDIR=$(GOLANGCI_LINT_DIR) && \
 	curl -sfL $$URL/$$VERSION/install.sh | sh -s $$VERSION
+	ln -sf $(GOLANGCI_LINT) $(BUILD_BIN_PATH)/golangci-lint
 
 .PHONY: vendor
 vendor: ## Update vendored golang modules.
