@@ -36,7 +36,6 @@ import (
 	"go.opentelemetry.io/otel/trace/noop"
 	internalapi "k8s.io/cri-api/pkg/apis"
 	remote "k8s.io/cri-client/pkg"
-	"k8s.io/klog/v2"
 
 	"sigs.k8s.io/cri-tools/pkg/common"
 	"sigs.k8s.io/cri-tools/pkg/framework"
@@ -92,8 +91,6 @@ func getRuntimeService(_ *cli.Context, timeout time.Duration) (res internalapi.R
 		tp = tracerProvider
 	}
 
-	logger := klog.Background()
-
 	// If no EP set then use the default endpoint types
 	if !RuntimeEndpointIsSet {
 		logrus.Warningf("runtime connect using default endpoints: %v. "+
@@ -106,7 +103,7 @@ func getRuntimeService(_ *cli.Context, timeout time.Duration) (res internalapi.R
 		for _, endPoint := range defaultRuntimeEndpoints {
 			logrus.Debugf("Connect using endpoint %q with %q timeout", endPoint, t)
 
-			res, err = remote.NewRemoteRuntimeService(endPoint, t, tp, &logger)
+			res, err = remote.NewRemoteRuntimeService(context.Background(), endPoint, t, tp)
 			if err != nil {
 				logrus.Error(err)
 
@@ -121,7 +118,7 @@ func getRuntimeService(_ *cli.Context, timeout time.Duration) (res internalapi.R
 		return res, err
 	}
 
-	return remote.NewRemoteRuntimeService(RuntimeEndpoint, t, tp, &logger)
+	return remote.NewRemoteRuntimeService(context.Background(), RuntimeEndpoint, t, tp)
 }
 
 func getImageService(*cli.Context) (res internalapi.ImageManagerService, err error) {
@@ -143,8 +140,6 @@ func getImageService(*cli.Context) (res internalapi.ImageManagerService, err err
 		tp = tracerProvider
 	}
 
-	logger := klog.Background()
-
 	// If no EP set then use the default endpoint types
 	if !ImageEndpointIsSet {
 		logrus.Warningf("Image connect using default endpoints: %v. "+
@@ -157,7 +152,7 @@ func getImageService(*cli.Context) (res internalapi.ImageManagerService, err err
 		for _, endPoint := range defaultRuntimeEndpoints {
 			logrus.Debugf("Connect using endpoint %q with %q timeout", endPoint, Timeout)
 
-			res, err = remote.NewRemoteImageService(endPoint, Timeout, tp, &logger)
+			res, err = remote.NewRemoteImageService(context.Background(), endPoint, Timeout, tp)
 			if err != nil {
 				logrus.Error(err)
 
@@ -172,7 +167,7 @@ func getImageService(*cli.Context) (res internalapi.ImageManagerService, err err
 		return res, err
 	}
 
-	return remote.NewRemoteImageService(ImageEndpoint, Timeout, tp, &logger)
+	return remote.NewRemoteImageService(context.Background(), ImageEndpoint, Timeout, tp)
 }
 
 func getTimeout(timeDuration time.Duration) time.Duration {

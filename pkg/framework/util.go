@@ -133,9 +133,9 @@ func AddBeforeSuiteCallback(callback func()) bool {
 // LoadCRIClient creates a InternalAPIClient.
 func LoadCRIClient() (*InternalAPIClient, error) {
 	rService, err := remote.NewRemoteRuntimeService(
+		context.Background(),
 		TestContext.RuntimeServiceAddr,
 		TestContext.RuntimeServiceTimeout,
-		nil,
 		nil,
 	)
 	if err != nil {
@@ -148,7 +148,7 @@ func LoadCRIClient() (*InternalAPIClient, error) {
 		imageServiceAddr = TestContext.RuntimeServiceAddr
 	}
 
-	iService, err := remote.NewRemoteImageService(imageServiceAddr, TestContext.ImageServiceTimeout, nil, nil)
+	iService, err := remote.NewRemoteImageService(context.Background(), imageServiceAddr, TestContext.ImageServiceTimeout, nil)
 	if err != nil {
 		return nil, err
 	}

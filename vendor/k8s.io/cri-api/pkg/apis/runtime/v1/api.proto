@@ -152,8 +152,16 @@ service ImageService {
     // RemoveImage removes the image.
     // This call is idempotent, and must not return an error if the image has
     // already been removed.
+    // Note that if the image is referenced by multiple tags (even across different repositories
+    // if they resolve to the same image digest), removing the image by a single tag
+    // will remove all of its tags. For example, if `repo/image:v1` and `another_repo/image:latest`
+    // point to the same image, removing `repo/image:v1` will also remove `another_repo/image:latest`.
+    // The next call to ListImages, ImageStatus, ImageFsInfo will not return this image.
+    // The resources (e.g. disk space) may be cleaned asynchronously
+    // and not guaranteed to be cleaned up by the time this method returns.
     rpc RemoveImage(RemoveImageRequest) returns (RemoveImageResponse) {}
     // ImageFSInfo returns information of the filesystem that is used to store images.
+    // Usage information may include images that were removed, but are still being cleaned up.
     rpc ImageFsInfo(ImageFsInfoRequest) returns (ImageFsInfoResponse) {}
 }
 
@@ -255,7 +263,7 @@ message Mount {
     // Mount an image reference (image ID, with or without digest), which is a
     // special use case for image volume mounts. If this field is set, then
     // host_path should be unset. All image mounts are per feature definition
-    // readonly (noexec). The kubelet does an PullImage RPC and evaluates the returned
+    // readonly. The kubelet does an PullImage RPC and evaluates the returned
     // PullImageResponse.image_ref value, which is then set to the
     // ImageSpec.image field. Runtimes are expected to mount the image as
     // required.
@@ -835,6 +843,9 @@ message ImageSpec {
     // If the runtime handler is unknown, the request should be rejected.
     // An empty string would select the default runtime handler.
     string runtime_handler = 19;
+    // The digest of the image used for this volume.
+    // It should have a value that's similar to the pod's status.containerStatuses[i].imageID.
+    string image_ref = 20;
 }
 
 message KeyValue {
@@ -1350,15 +1361,11 @@ message Container {
     // MUST be identical to that of the corresponding ContainerConfig used to
     // instantiate this Container.
     map<string, string> annotations = 9;
-    // Reference to the unique identifier of the image, on the node, as
-    // returned in the image service apis.
+    // Reference to the unique identifier of the image on the node, as
+    // returned in the image and runtime service apis.
     //
-    // Note: The image_ref above has been historically used by container
-    // runtimes to reference images by digest. The image_ref has been also used
-    // in the kubelet image garbage collection, which does not work with
-    // digests at all. To separate and avoid possible misusage, we now
-    // introduce the image_id field, which should always refer to a unique
-    // image identifier on the node.
+    // This value MUST always match `PullImageResponse.image_ref` when referring
+    // to the same image.
     string image_id = 10;
 }
 
@@ -1413,13 +1420,11 @@ message ContainerStatus {
     string log_path = 15;
     // Resource limits configuration of the container.
     ContainerResources resources = 16;
-    // Reference to the unique identifier of the image, on the node, as
-    // returned in the image service apis.
+    // Reference to the unique identifier of the image on the node, as
+    // returned in the image and runtime service apis.
     //
-    // Note: The image_ref above has been historically used by container
-    // runtimes to reference images by digest. To separate and avoid possible
-    // misusage, we now introduce the image_id field, which should always refer
-    // to a unique image identifier on the node.
+    // This value MUST always match `PullImageResponse.image_ref` when referring
+    // to the same image.
     string image_id = 17;
     // User identities initially attached to the container
     ContainerUser user = 18;
@@ -1573,7 +1578,11 @@ message ListImagesRequest {
 
 // Basic information about a container image.
 message Image {
-    // ID of the image.
+    // Reference to the unique identifier of the image on the node, as
+    // returned in the image and runtime service apis.
+    //
+    // This value MUST always match `PullImageResponse.image_ref` when referring
+    // to the same image.
     string id = 1;
     // Other names by which this image is known.
     repeated string repo_tags = 2;
@@ -1641,8 +1650,19 @@ message PullImageRequest {
 }
 
 message PullImageResponse {
-    // Reference to the image in use. For most runtimes, this should be an
-    // image ID or digest.
+    // Reference to the unique identifier of the image on the node, as
+    // returned in the image and runtime service apis.
+    //
+    // When referring to the same image, the container runtime MUST always return
+    // the same value for:
+    //     - Image.id
+    //     - Container.image_id
+    //     - ContainerStatus.image_id
+    //     - PullImageResponse.image_ref
+    // Note: this field has a stricter meaning starting with v1.36.
+    // It used to be image ID OR digest, which are different values,
+    // and would not necessarily match other ID fields in the Container,
+    // ContainerStatus, and Image messages
     string image_ref = 1;
 }
 

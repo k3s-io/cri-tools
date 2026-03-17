@@ -33,7 +33,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	pb "k8s.io/cri-api/pkg/apis/runtime/v1"
 	"k8s.io/cri-client/pkg/logs"
-	"k8s.io/klog/v2"
 )
 
 const (
@@ -185,8 +184,6 @@ var logsCommand = &cli.Command{
 			cancelFn()
 		}()
 
-		logger := klog.Background()
-
 		var (
 			stdoutStream io.Writer = os.Stdout
 			stderrStream io.Writer = os.Stderr
@@ -199,7 +196,7 @@ var logsCommand = &cli.Command{
 			stdoutStream = nil
 		}
 
-		return logs.ReadLogs(readLogCtx, &logger, logPath, status.GetStatus().GetId(), logOptions, runtimeService, stdoutStream, stderrStream)
+		return logs.ReadLogs(readLogCtx, logPath, status.GetStatus().GetId(), logOptions, runtimeService, stdoutStream, stderrStream)
 	},
 }
 
