@@ -32,7 +32,6 @@ import (
 	"github.com/urfave/cli/v2"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
-	errorUtils "k8s.io/apimachinery/pkg/util/errors"
 	internalapi "k8s.io/cri-api/pkg/apis"
 	pb "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
@@ -203,7 +202,7 @@ var removePodCommand = &cli.Command{
 			})
 		}
 
-		return errorUtils.AggregateGoroutines(funcs...)
+		return AggregateGoroutines(funcs...)
 	},
 }
 

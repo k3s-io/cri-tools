@@ -26,7 +26,6 @@ import (
 	mobyterm "github.com/moby/term"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
-	errorUtils "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/rest"
 	remoteclient "k8s.io/client-go/tools/remotecommand"
 	internalapi "k8s.io/cri-api/pkg/apis"
@@ -268,7 +267,7 @@ var runtimeExecCommand = &cli.Command{
 			})
 		}
 
-		errs := errorUtils.AggregateGoroutines(funcs...)
+		errs := AggregateGoroutines(funcs...)
 
 		if ignoreErrors {
 			logrus.Debugf("Ignoring errors: %v", errs)

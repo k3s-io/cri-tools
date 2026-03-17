@@ -653,3 +653,24 @@ func handleDisplay(
 		return err
 	}
 }
+
+// AggregateGoroutines runs the provided functions in parallel, stuffing all
+// non-nil errors into the returned aggregate error.
+// Returns nil if all the functions complete successfully.
+func AggregateGoroutines(funcs ...func() error) error {
+	errChan := make(chan error, len(funcs))
+	for _, f := range funcs {
+		go func(f func() error) {
+			errChan <- f()
+		}(f)
+	}
+
+	errs := make([]error, 0, len(funcs))
+	for range funcs {
+		if err := <-errChan; err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return errors.Join(errs...)
+}

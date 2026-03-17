@@ -34,7 +34,6 @@ import (
 	godigest "github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
-	errorUtils "k8s.io/apimachinery/pkg/util/errors"
 	internalapi "k8s.io/cri-api/pkg/apis"
 	pb "k8s.io/cri-api/pkg/apis/runtime/v1"
 	"k8s.io/kubelet/pkg/types"
@@ -526,7 +525,7 @@ var removeContainerCommand = &cli.Command{
 			})
 		}
 
-		return errorUtils.AggregateGoroutines(funcs...)
+		return AggregateGoroutines(funcs...)
 	},
 }
 
