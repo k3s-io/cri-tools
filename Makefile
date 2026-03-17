@@ -14,6 +14,7 @@
 
 MAKEFLAGS += --no-print-directory
 GO ?= go
+NPX ?= npx
 
 GOARCH ?= $(shell $(GO) env GOARCH)
 GOOS ?= $(shell $(GO) env GOOS)
@@ -131,7 +132,7 @@ release: ## Build a release.
 ##@ Verify targets:
 
 .PHONY: verify
-verify: verify-lint verify-boilerplate verify-docs verify-dependencies verify-go-modules ## Run all verify targets.
+verify: verify-lint verify-boilerplate verify-docs verify-dependencies verify-go-modules verify-prettier ## Run all verify targets.
 
 .PHONY: verify-lint
 verify-lint: $(GOLANGCI_LINT) ## Run golangci-lint.
@@ -140,6 +141,20 @@ verify-lint: $(GOLANGCI_LINT) ## Run golangci-lint.
 .PHONY: lint-fix
 lint-fix: $(GOLANGCI_LINT) ## Run golangci-lint with fix.
 	$(GOLANGCI_LINT) run --fix
+
+.PHONY: verify-prettier
+verify-prettier: ## Run prettier check.
+	# skip check if npx is not available since it is not a standard
+	# tool for go developers and may not be installed in the environment
+	@if $(NPX) --version >/dev/null 2>&1; then \
+		$(NPX) prettier --check .; \
+	else \
+		echo "npx not found. Skipping prettier check."; \
+	fi
+
+.PHONY: prettier-fix
+prettier-fix: ## Run prettier with write.
+	$(NPX) prettier --write .
 
 .PHONY: verify-boilerplate
 verify-boilerplate: $(VERIFY_BOILERPLATE) ## Verify the boilerplate headers.
@@ -207,6 +222,10 @@ $(GINKGO):
 
 .PHONY: install.lint
 install.lint: $(GOLANGCI_LINT) ## Install golangci-lint.
+
+.PHONY: install.prettier
+install.prettier: ## Install prettier.
+	npm install prettier
 
 $(GOLANGCI_LINT):
 	mkdir -p $(GOLANGCI_LINT_DIR)

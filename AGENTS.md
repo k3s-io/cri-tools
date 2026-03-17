@@ -16,6 +16,16 @@ To test code you need to have a functioning container runtime installed. The two
 
 The project uses `make` for building and running tests.
 
+### Validation
+
+Before completing any task, agents **must** verify their changes by running the following commands:
+
+1. **Linter**: `make verify-lint`
+2. **Formatting**: `make verify-prettier`
+3. **Tests**: Ensure relevant tests pass (see the [Testing](#testing) section).
+
+Failure to run these checks may result in CI failures.
+
 ### Adding dependencies
 
 If your patch depends on new packages, add that package to the `go.mod` file,
@@ -56,6 +66,28 @@ make lint-fix
 ```
 
 Removing linter rules or adding linter ignore directives must be the last resort. The detailed explanation must be added to each ignore directive.
+
+### Prettier
+
+Prettier is used to maintain consistent formatting, primarily for Markdown files. To use these targets, you must have the Node.js toolchain (`npm` and `npx`) installed on your system.
+
+To install Prettier locally, run:
+
+```bash
+make install.prettier
+```
+
+To verify the formatting (highly recommended when modifying `.md` files), run:
+
+```bash
+make verify-prettier
+```
+
+To automatically fix formatting issues, run:
+
+```bash
+make prettier-fix
+```
 
 ### Testing
 
