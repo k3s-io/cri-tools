@@ -130,6 +130,9 @@ release: ## Build a release.
 
 ##@ Verify targets:
 
+.PHONY: verify
+verify: verify-lint verify-boilerplate verify-docs verify-dependencies verify-go-modules ## Run all verify targets.
+
 .PHONY: verify-lint
 verify-lint: $(GOLANGCI_LINT) ## Run golangci-lint.
 	$(GOLANGCI_LINT) run
