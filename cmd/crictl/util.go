@@ -36,7 +36,6 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/protoadapt"
 	"google.golang.org/protobuf/runtime/protoiface"
-	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/rest"
 	internalapi "k8s.io/cri-api/pkg/apis"
 	pb "k8s.io/cri-api/pkg/apis/runtime/v1"
@@ -200,14 +199,17 @@ func getSortedKeys(m map[string]string) []string {
 }
 
 func loadContainerConfig(path string) (*pb.ContainerConfig, error) {
-	f, err := openFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("config at %s not found", path)
+		}
+
 		return nil, err
 	}
-	defer f.Close()
 
 	var config pb.ContainerConfig
-	if err := utilyaml.NewYAMLOrJSONDecoder(f, 4096).Decode(&config); err != nil {
+	if err := yaml.Unmarshal(data, &config); err != nil {
 		return nil, err
 	}
 
@@ -244,14 +246,17 @@ func printJSONSchema(value any) error {
 }
 
 func loadPodSandboxConfig(path string) (*pb.PodSandboxConfig, error) {
-	f, err := openFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("config at %s not found", path)
+		}
+
 		return nil, err
 	}
-	defer f.Close()
 
 	var config pb.PodSandboxConfig
-	if err := utilyaml.NewYAMLOrJSONDecoder(f, 4096).Decode(&config); err != nil {
+	if err := yaml.Unmarshal(data, &config); err != nil {
 		return nil, err
 	}
 
@@ -272,19 +277,6 @@ func loadPodSandboxConfig(path string) (*pb.PodSandboxConfig, error) {
 	}
 
 	return &config, nil
-}
-
-func openFile(path string) (*os.File, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return nil, fmt.Errorf("config at %s not found", path)
-		}
-
-		return nil, err
-	}
-
-	return f, nil
 }
 
 func protobufObjectToJSON(obj protoiface.MessageV1) (string, error) {

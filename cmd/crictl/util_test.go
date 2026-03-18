@@ -221,3 +221,191 @@ func TestOutputStatusData(t *testing.T) {
 		})
 	}
 }
+
+func TestLoadContainerConfig(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		content  string
+		expError bool
+	}{
+		{
+			name: "valid yaml",
+			content: `
+metadata:
+  name: test-container
+image: { image: "busybox" }
+`,
+		},
+		{
+			name:    "valid json",
+			content: `{"metadata": {"name": "test-container"}, "image": {"image": "busybox"}}`,
+		},
+		{
+			name:     "missing metadata",
+			content:  "image: { image: \"busybox\" }",
+			expError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tmpfile, err := os.CreateTemp(t.TempDir(), "container-config-*.yaml")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if _, err := tmpfile.WriteString(tt.content); err != nil {
+				t.Fatal(err)
+			}
+
+			tmpfile.Close()
+
+			config, err := loadContainerConfig(tmpfile.Name())
+			if tt.expError {
+				if err == nil {
+					t.Error("expected error, got nil")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+
+				if config == nil {
+					t.Fatal("expected config, got nil")
+				}
+
+				if config.GetMetadata().GetName() != "test-container" {
+					t.Errorf("expected name %q, got %q", "test-container", config.GetMetadata().GetName())
+				}
+
+				if config.GetImage().GetImage() != "busybox" {
+					t.Errorf("expected image %q, got %q", "busybox", config.GetImage().GetImage())
+				}
+			}
+		})
+	}
+}
+
+func TestLoadContainerConfigNotFound(t *testing.T) {
+	t.Parallel()
+
+	const filename = "non-existent-file.yaml"
+
+	_, err := loadContainerConfig(filename)
+	if err == nil {
+		t.Error("expected error, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("expected error message to contain %q, got %q", "not found", err.Error())
+	}
+
+	if !strings.Contains(err.Error(), filename) {
+		t.Errorf("expected error message to contain %q, got %q", filename, err.Error())
+	}
+}
+
+func TestLoadPodSandboxConfig(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		content  string
+		expError bool
+	}{
+		{
+			name: "valid yaml",
+			content: `
+metadata:
+  name: test-pod
+  namespace: default
+`,
+		},
+		{
+			name: "valid json",
+			content: `
+{
+  "metadata": {
+    "name": "test-pod",
+    "namespace": "default"
+  }
+}
+`,
+		},
+		{
+			name: "missing namespace",
+			content: `
+metadata:
+  name: test-pod
+`,
+			expError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			tmpfile, err := os.CreateTemp(t.TempDir(), "pod-config-*.yaml")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if _, err := tmpfile.WriteString(tt.content); err != nil {
+				t.Fatal(err)
+			}
+
+			tmpfile.Close()
+
+			config, err := loadPodSandboxConfig(tmpfile.Name())
+			if tt.expError {
+				if err == nil {
+					t.Error("expected error, got nil")
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error: %v", err)
+				}
+
+				if config == nil {
+					t.Fatal("expected config, got nil")
+				}
+
+				if config.GetMetadata().GetName() != "test-pod" {
+					t.Errorf("expected name %q, got %q", "test-pod", config.GetMetadata().GetName())
+				}
+
+				if config.GetMetadata().GetNamespace() != "default" {
+					t.Errorf("expected namespace %q, got %q", "default", config.GetMetadata().GetNamespace())
+				}
+
+				if config.GetMetadata().GetUid() == "" {
+					t.Error("expected UID to be non-empty")
+				}
+			}
+		})
+	}
+}
+
+func TestLoadPodSandboxConfigNotFound(t *testing.T) {
+	t.Parallel()
+
+	const filename = "non-existent-file.yaml"
+
+	_, err := loadPodSandboxConfig(filename)
+	if err == nil {
+		t.Error("expected error, got nil")
+	}
+
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("expected error message to contain %q, got %q", "not found", err.Error())
+	}
+
+	if !strings.Contains(err.Error(), filename) {
+		t.Errorf("expected error message to contain %q, got %q", filename, err.Error())
+	}
+}
