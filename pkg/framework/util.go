@@ -137,6 +137,7 @@ func LoadCRIClient() (*InternalAPIClient, error) {
 		TestContext.RuntimeServiceAddr,
 		TestContext.RuntimeServiceTimeout,
 		nil,
+		false,
 	)
 	if err != nil {
 		return nil, err
@@ -148,7 +149,7 @@ func LoadCRIClient() (*InternalAPIClient, error) {
 		imageServiceAddr = TestContext.RuntimeServiceAddr
 	}
 
-	iService, err := remote.NewRemoteImageService(context.Background(), imageServiceAddr, TestContext.ImageServiceTimeout, nil)
+	iService, err := remote.NewRemoteImageService(context.Background(), imageServiceAddr, TestContext.ImageServiceTimeout, nil, false)
 	if err != nil {
 		return nil, err
 	}

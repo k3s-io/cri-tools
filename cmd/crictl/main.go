@@ -103,7 +103,7 @@ func getRuntimeService(_ *cli.Context, timeout time.Duration) (res internalapi.R
 		for _, endPoint := range defaultRuntimeEndpoints {
 			logrus.Debugf("Connect using endpoint %q with %q timeout", endPoint, t)
 
-			res, err = remote.NewRemoteRuntimeService(context.Background(), endPoint, t, tp)
+			res, err = remote.NewRemoteRuntimeService(context.Background(), endPoint, t, tp, false)
 			if err != nil {
 				logrus.Error(err)
 
@@ -118,7 +118,7 @@ func getRuntimeService(_ *cli.Context, timeout time.Duration) (res internalapi.R
 		return res, err
 	}
 
-	return remote.NewRemoteRuntimeService(context.Background(), RuntimeEndpoint, t, tp)
+	return remote.NewRemoteRuntimeService(context.Background(), RuntimeEndpoint, t, tp, false)
 }
 
 func getImageService(*cli.Context) (res internalapi.ImageManagerService, err error) {
@@ -152,7 +152,7 @@ func getImageService(*cli.Context) (res internalapi.ImageManagerService, err err
 		for _, endPoint := range defaultRuntimeEndpoints {
 			logrus.Debugf("Connect using endpoint %q with %q timeout", endPoint, Timeout)
 
-			res, err = remote.NewRemoteImageService(context.Background(), endPoint, Timeout, tp)
+			res, err = remote.NewRemoteImageService(context.Background(), endPoint, Timeout, tp, false)
 			if err != nil {
 				logrus.Error(err)
 
@@ -167,7 +167,7 @@ func getImageService(*cli.Context) (res internalapi.ImageManagerService, err err
 		return res, err
 	}
 
-	return remote.NewRemoteImageService(context.Background(), ImageEndpoint, Timeout, tp)
+	return remote.NewRemoteImageService(context.Background(), ImageEndpoint, Timeout, tp, false)
 }
 
 func getTimeout(timeDuration time.Duration) time.Duration {

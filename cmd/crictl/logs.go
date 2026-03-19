@@ -29,8 +29,6 @@ import (
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	pb "k8s.io/cri-api/pkg/apis/runtime/v1"
 	"k8s.io/cri-client/pkg/logs"
 )
@@ -39,6 +37,28 @@ const (
 	streamStdout = "stdout"
 	streamStderr = "stderr"
 )
+
+// NewLogOptions converts PodLogOptions to LogOptions.
+func NewLogOptions(follow, timestamps bool, since time.Time, tailLines, limitBytes *int64) *logs.LogOptions {
+	res := &logs.LogOptions{
+		Follow:    follow,
+		Timestamp: timestamps,
+	}
+
+	if !since.IsZero() {
+		res.Since = since
+	}
+
+	if tailLines != nil && *tailLines >= 0 {
+		res.TailLines = tailLines
+	}
+
+	if limitBytes != nil && *limitBytes >= 0 {
+		res.LimitBytes = limitBytes
+	}
+
+	return res
+}
 
 var logsCommand = &cli.Command{
 	Name:                   "logs",
@@ -133,13 +153,7 @@ var logsCommand = &cli.Command{
 			return errors.New("--tail and --stream are mutually exclusive")
 		}
 
-		logOptions := logs.NewLogOptions(&v1.PodLogOptions{
-			Follow:     c.Bool("follow"),
-			TailLines:  &tailLines,
-			LimitBytes: &limitBytes,
-			SinceTime:  since,
-			Timestamps: timestamp,
-		}, time.Now())
+		logOptions := NewLogOptions(c.Bool("follow"), timestamp, since, &tailLines, &limitBytes)
 
 		status, err := InterruptableRPC(c.Context, func(ctx context.Context) (*pb.ContainerStatusResponse, error) {
 			return runtimeService.ContainerStatus(ctx, containerID, false)
@@ -202,22 +216,20 @@ var logsCommand = &cli.Command{
 
 // parseTimestamp parses timestamp string as golang duration,
 // then RFC3339 time and finally as a Unix timestamp.
-func parseTimestamp(value string) (*metav1.Time, error) {
+func parseTimestamp(value string) (time.Time, error) {
 	if value == "" {
-		return nil, nil
+		return time.Time{}, nil
 	}
 
 	str, err := timetypes.GetTimestamp(value, time.Now())
 	if err != nil {
-		return nil, err
+		return time.Time{}, err
 	}
 
 	s, ns, err := timetypes.ParseTimestamps(str, 0)
 	if err != nil {
-		return nil, err
+		return time.Time{}, err
 	}
 
-	t := metav1.NewTime(time.Unix(s, ns))
-
-	return &t, nil
+	return time.Unix(s, ns), nil
 }
