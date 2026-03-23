@@ -30,6 +30,7 @@ import (
 	. "github.com/onsi/gomega"
 	internalapi "k8s.io/cri-api/pkg/apis"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
+	"k8s.io/kubelet/pkg/types"
 
 	"sigs.k8s.io/cri-tools/pkg/framework"
 )
@@ -91,6 +92,47 @@ var _ = framework.KubeDescribe("Container", func() {
 
 			containers := listContainerForID(ctx, rc, containerID)
 			Expect(containerFound(containers, containerID)).To(BeTrue(), "Container should be created")
+		})
+
+		It("runtime should support preserving container attributes [Conformance]", func(ctx SpecContext) {
+			By("create container with attributes")
+
+			containerName := "container-with-attributes-" + framework.NewUUID()
+			metadata := framework.BuildContainerMetadata(containerName, framework.DefaultAttempt)
+			labels := map[string]string{
+				"foo":                              "bar",
+				types.KubernetesContainerNameLabel: containerName,
+				types.KubernetesPodNameLabel:       "fake-pod-name",
+				types.KubernetesPodNamespaceLabel:  "fake-pod-namespace",
+			}
+			annotations := map[string]string{"abc": "def"}
+
+			containerConfig := &runtimeapi.ContainerConfig{
+				Metadata:    metadata,
+				Image:       &runtimeapi.ImageSpec{Image: framework.TestContext.TestImageList.DefaultTestContainerImage},
+				Labels:      labels,
+				Annotations: annotations,
+			}
+
+			containerID := framework.CreateContainer(ctx, rc, ic, containerConfig, podID, podConfig)
+
+			By("test get container status")
+
+			status := getContainerStatus(ctx, rc, containerID)
+			Expect(status.GetMetadata().GetName()).To(Equal(metadata.GetName()))
+			Expect(status.GetMetadata().GetAttempt()).To(Equal(metadata.GetAttempt()))
+			Expect(status.GetLabels()).To(Equal(labels))
+			Expect(status.GetAnnotations()).To(Equal(annotations))
+
+			By("test list container")
+
+			containers := listContainerForID(ctx, rc, containerID)
+			Expect(containers).To(HaveLen(1))
+			container := containers[0]
+			Expect(container.GetMetadata().GetName()).To(Equal(metadata.GetName()))
+			Expect(container.GetMetadata().GetAttempt()).To(Equal(metadata.GetAttempt()))
+			Expect(container.GetLabels()).To(Equal(labels))
+			Expect(container.GetAnnotations()).To(Equal(annotations))
 		})
 
 		It("runtime should support starting container [Conformance]", func(ctx SpecContext) {

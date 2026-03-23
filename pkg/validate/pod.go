@@ -25,6 +25,7 @@ import (
 	. "github.com/onsi/gomega"
 	internalapi "k8s.io/cri-api/pkg/apis"
 	runtimeapi "k8s.io/cri-api/pkg/apis/runtime/v1"
+	"k8s.io/kubelet/pkg/types"
 
 	"sigs.k8s.io/cri-tools/pkg/common"
 	"sigs.k8s.io/cri-tools/pkg/framework"
@@ -82,6 +83,54 @@ var _ = framework.KubeDescribe("PodSandbox", func() {
 			By("test remove PodSandbox")
 			testRemovePodSandbox(ctx, rc, podID)
 			podID = "" // no need to cleanup pod
+		})
+
+		It("runtime should support preserving PodSandbox attributes [Conformance]", func(ctx SpecContext) {
+			By("test run a PodSandbox with attributes")
+
+			podSandboxName := "PodSandbox-with-attributes-" + framework.NewUUID()
+			uid := framework.DefaultUIDPrefix + framework.NewUUID()
+			namespace := framework.DefaultNamespacePrefix + framework.NewUUID()
+			metadata := framework.BuildPodSandboxMetadata(podSandboxName, uid, namespace, framework.DefaultAttempt)
+			labels := map[string]string{
+				"foo":                             "bar",
+				types.KubernetesPodNameLabel:      podSandboxName,
+				types.KubernetesPodNamespaceLabel: namespace,
+				types.KubernetesPodUIDLabel:       uid,
+			}
+			annotations := map[string]string{"abc": "def"}
+
+			podConfig := &runtimeapi.PodSandboxConfig{
+				Metadata:    metadata,
+				Labels:      labels,
+				Annotations: annotations,
+				Linux: &runtimeapi.LinuxPodSandboxConfig{
+					CgroupParent: common.GetCgroupParent(ctx, rc),
+				},
+			}
+			podID = framework.RunPodSandbox(ctx, rc, podConfig)
+
+			By("test get PodSandbox status")
+
+			status := getPodSandboxStatus(ctx, rc, podID)
+			Expect(status.GetMetadata().GetName()).To(Equal(metadata.GetName()))
+			Expect(status.GetMetadata().GetUid()).To(Equal(metadata.GetUid()))
+			Expect(status.GetMetadata().GetNamespace()).To(Equal(metadata.GetNamespace()))
+			Expect(status.GetMetadata().GetAttempt()).To(Equal(metadata.GetAttempt()))
+			Expect(status.GetLabels()).To(Equal(labels))
+			Expect(status.GetAnnotations()).To(Equal(annotations))
+
+			By("test list PodSandbox")
+
+			pods := listPodSandbox(ctx, rc, &runtimeapi.PodSandboxFilter{Id: podID})
+			Expect(pods).To(HaveLen(1))
+			pod := pods[0]
+			Expect(pod.GetMetadata().GetName()).To(Equal(metadata.GetName()))
+			Expect(pod.GetMetadata().GetUid()).To(Equal(metadata.GetUid()))
+			Expect(pod.GetMetadata().GetNamespace()).To(Equal(metadata.GetNamespace()))
+			Expect(pod.GetMetadata().GetAttempt()).To(Equal(metadata.GetAttempt()))
+			Expect(pod.GetLabels()).To(Equal(labels))
+			Expect(pod.GetAnnotations()).To(Equal(annotations))
 		})
 	})
 })
