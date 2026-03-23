@@ -435,8 +435,6 @@ func stream(ctx context.Context, in, tty bool, transport string, parsedURL *url.
 
 // terminalSizeQueueAdapter adapts k8s.io/kubectl/pkg/util/term.TerminalSizeQueue
 // to k8s.io/client-go/tools/remotecommand.TerminalSizeQueue.
-// TODO: Remove this adapter once kubernetes/kubernetes#135587 is merged and vendored.
-// After the fix, both types will be aliases to the same shared type, making this unnecessary.
 type terminalSizeQueueAdapter struct {
 	queue term.TerminalSizeQueue
 }
