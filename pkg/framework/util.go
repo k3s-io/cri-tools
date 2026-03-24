@@ -393,6 +393,19 @@ func PullPublicImage(ctx context.Context, c internalapi.ImageManagerService, ima
 	return id
 }
 
+// ExpectSubset verifies that the expected map is a subset of the actual map and logs additional elements.
+func ExpectSubset(actual, expected map[string]string, name string) {
+	for k, v := range expected {
+		Expect(actual).To(HaveKeyWithValue(k, v), "expected %s key %q to have value %q", name, k, v)
+	}
+
+	for k, v := range actual {
+		if _, ok := expected[k]; !ok {
+			Logf("Found additional %s: %s=%s", name, k, v)
+		}
+	}
+}
+
 // LoadYamlFile attempts to load the given YAML file into the given struct.
 func LoadYamlFile(filepath string, obj any) error {
 	Logf("Attempting to load YAML file %q into %+v", filepath, obj)

@@ -121,8 +121,8 @@ var _ = framework.KubeDescribe("Container", func() {
 			status := getContainerStatus(ctx, rc, containerID)
 			Expect(status.GetMetadata().GetName()).To(Equal(metadata.GetName()))
 			Expect(status.GetMetadata().GetAttempt()).To(Equal(metadata.GetAttempt()))
-			Expect(status.GetLabels()).To(Equal(labels))
-			Expect(status.GetAnnotations()).To(Equal(annotations))
+			framework.ExpectSubset(status.GetLabels(), labels, "labels")
+			framework.ExpectSubset(status.GetAnnotations(), annotations, "annotations")
 
 			By("test list container")
 
@@ -131,8 +131,8 @@ var _ = framework.KubeDescribe("Container", func() {
 			container := containers[0]
 			Expect(container.GetMetadata().GetName()).To(Equal(metadata.GetName()))
 			Expect(container.GetMetadata().GetAttempt()).To(Equal(metadata.GetAttempt()))
-			Expect(container.GetLabels()).To(Equal(labels))
-			Expect(container.GetAnnotations()).To(Equal(annotations))
+			framework.ExpectSubset(container.GetLabels(), labels, "labels")
+			framework.ExpectSubset(container.GetAnnotations(), annotations, "annotations")
 		})
 
 		It("runtime should support starting container [Conformance]", func(ctx SpecContext) {

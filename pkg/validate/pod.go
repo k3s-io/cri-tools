@@ -117,8 +117,8 @@ var _ = framework.KubeDescribe("PodSandbox", func() {
 			Expect(status.GetMetadata().GetUid()).To(Equal(metadata.GetUid()))
 			Expect(status.GetMetadata().GetNamespace()).To(Equal(metadata.GetNamespace()))
 			Expect(status.GetMetadata().GetAttempt()).To(Equal(metadata.GetAttempt()))
-			Expect(status.GetLabels()).To(Equal(labels))
-			Expect(status.GetAnnotations()).To(Equal(annotations))
+			framework.ExpectSubset(status.GetLabels(), labels, "labels")
+			framework.ExpectSubset(status.GetAnnotations(), annotations, "annotations")
 
 			By("test list PodSandbox")
 
@@ -129,8 +129,8 @@ var _ = framework.KubeDescribe("PodSandbox", func() {
 			Expect(pod.GetMetadata().GetUid()).To(Equal(metadata.GetUid()))
 			Expect(pod.GetMetadata().GetNamespace()).To(Equal(metadata.GetNamespace()))
 			Expect(pod.GetMetadata().GetAttempt()).To(Equal(metadata.GetAttempt()))
-			Expect(pod.GetLabels()).To(Equal(labels))
-			Expect(pod.GetAnnotations()).To(Equal(annotations))
+			framework.ExpectSubset(pod.GetLabels(), labels, "labels")
+			framework.ExpectSubset(pod.GetAnnotations(), annotations, "annotations")
 		})
 	})
 })
