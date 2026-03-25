@@ -104,6 +104,7 @@ var _ = framework.KubeDescribe("Container", func() {
 				types.KubernetesContainerNameLabel: containerName,
 				types.KubernetesPodNameLabel:       "fake-pod-name",
 				types.KubernetesPodNamespaceLabel:  "fake-pod-namespace",
+				types.KubernetesPodUIDLabel:        "fake-pod-uid",
 			}
 			annotations := map[string]string{"abc": "def"}
 
