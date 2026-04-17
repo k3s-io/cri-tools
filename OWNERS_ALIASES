@@ -1,7 +1,7 @@
 # See the OWNERS docs at https://go.k8s.io/owners
 
 aliases:
-  # From https://github.com/kubernetes/kubernetes/blob/master/OWNERS_ALIASES#LC220
+  # From https://github.com/kubernetes/kubernetes/blob/master/OWNERS_ALIASES#LC236:~:text=sig%2Dnode%2Dapprovers
   sig-node-approvers:
     # - dchen1107 # not in k-sigs org
     # - sjenning # not in k-sigs org
@@ -10,3 +10,5 @@ aliases:
     - klueska
     - mrunalp
     - yujuhong
+    - SergeyKanzhelev
+    - tallclair
